@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Camera, Upload, X, Loader2, Search } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import { identifyCollectible, type IdentifyResponse } from "@/lib/api/identifyCollectible";
 
 const ScanPage = () => {
   const [image, setImage] = useState<string | null>(null);
@@ -25,11 +27,33 @@ const ScanPage = () => {
     [handleFile]
   );
 
-  const startScan = () => {
+  const startScan = async () => {
+    if (!image) return;
     setScanning(true);
-    setTimeout(() => {
-      navigate("/results");
-    }, 2500);
+
+    try {
+      const result = await identifyCollectible(image);
+
+      if (result.success && result.identification) {
+        // Store result and user photo in sessionStorage for results page
+        sessionStorage.setItem('scanResult', JSON.stringify(result));
+        sessionStorage.setItem('userPhoto', image);
+        navigate("/results");
+      } else {
+        toast.error("No se pudo identificar el artículo. Intenta con otra foto.");
+      }
+    } catch (err: any) {
+      console.error("Scan error:", err);
+      if (err.message?.includes('Rate limit')) {
+        toast.error("Demasiadas solicitudes. Espera un momento e intenta de nuevo.");
+      } else if (err.message?.includes('credits')) {
+        toast.error("Créditos de IA agotados.");
+      } else {
+        toast.error("Error al analizar la imagen. Intenta de nuevo.");
+      }
+    } finally {
+      setScanning(false);
+    }
   };
 
   return (
@@ -99,7 +123,8 @@ const ScanPage = () => {
                   <div className="absolute inset-x-0 top-0 h-1 animate-scan-line gradient-gold rounded-full" />
                   <div className="flex flex-col items-center gap-3">
                     <Loader2 size={40} className="animate-spin text-primary" />
-                    <p className="font-medium text-primary">Analizando artículo...</p>
+                    <p className="font-medium text-primary">Identificando con IA...</p>
+                    <p className="text-sm text-muted-foreground">Analizando imagen y buscando coincidencias</p>
                   </div>
                 </div>
               )}
