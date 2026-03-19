@@ -99,7 +99,7 @@ const ResultsPage = () => {
             <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Imagen oficial</p>
             <div className="aspect-[3/4] overflow-hidden rounded-xl border border-border bg-secondary">
               {img?.imageUrl ? (
-                <img src={img.imageUrl} alt={id.name} className="h-full w-full object-contain p-1" />
+                <img src={img.imageUrl} alt={id.name} className="h-full w-full object-contain p-1 cursor-zoom-in" onClick={() => setLightboxSrc(img.imageUrl)} />
               ) : (
                 <div className="flex h-full flex-col items-center justify-center gap-2 text-muted-foreground p-4 text-center">
                   <ImageOff size={32} />
