@@ -14,7 +14,87 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      collection_items: {
+        Row: {
+          card_number: string | null
+          catalog_id: string | null
+          category: string
+          condition_estimate: string | null
+          confidence: number | null
+          created_at: string
+          description: string | null
+          estimated_value_usd: number | null
+          id: string
+          name: string
+          official_card_id: string | null
+          official_card_number: string | null
+          official_image_attribution: string | null
+          official_image_source: string | null
+          official_image_source_url: string | null
+          official_image_url: string | null
+          official_set_name: string | null
+          rarity: string | null
+          set_or_edition: string | null
+          special_features: string[] | null
+          tcg_set_id: string | null
+          user_photo_url: string | null
+          variant: string | null
+          year: number | null
+        }
+        Insert: {
+          card_number?: string | null
+          catalog_id?: string | null
+          category: string
+          condition_estimate?: string | null
+          confidence?: number | null
+          created_at?: string
+          description?: string | null
+          estimated_value_usd?: number | null
+          id?: string
+          name: string
+          official_card_id?: string | null
+          official_card_number?: string | null
+          official_image_attribution?: string | null
+          official_image_source?: string | null
+          official_image_source_url?: string | null
+          official_image_url?: string | null
+          official_set_name?: string | null
+          rarity?: string | null
+          set_or_edition?: string | null
+          special_features?: string[] | null
+          tcg_set_id?: string | null
+          user_photo_url?: string | null
+          variant?: string | null
+          year?: number | null
+        }
+        Update: {
+          card_number?: string | null
+          catalog_id?: string | null
+          category?: string
+          condition_estimate?: string | null
+          confidence?: number | null
+          created_at?: string
+          description?: string | null
+          estimated_value_usd?: number | null
+          id?: string
+          name?: string
+          official_card_id?: string | null
+          official_card_number?: string | null
+          official_image_attribution?: string | null
+          official_image_source?: string | null
+          official_image_source_url?: string | null
+          official_image_url?: string | null
+          official_set_name?: string | null
+          rarity?: string | null
+          set_or_edition?: string | null
+          special_features?: string[] | null
+          tcg_set_id?: string | null
+          user_photo_url?: string | null
+          variant?: string | null
+          year?: number | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
