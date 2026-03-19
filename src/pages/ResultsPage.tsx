@@ -193,6 +193,10 @@ const ResultsPage = () => {
           </div>
         </motion.div>
       </div>
+
+      {lightboxSrc && (
+        <ImageLightbox src={lightboxSrc} alt={id.name} onClose={() => setLightboxSrc(null)} />
+      )}
     </div>
   );
 };
