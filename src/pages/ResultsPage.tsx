@@ -1,10 +1,34 @@
 import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
-import { ArrowLeft, Plus, TrendingUp, Star, ExternalLink, ShieldCheck, ImageOff } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { ArrowLeft, Plus, TrendingUp, Star, ExternalLink, ShieldCheck, ImageOff, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import type { IdentifyResponse } from "@/lib/api/identifyCollectible";
+
+const ImageLightbox = ({ src, alt, onClose }: { src: string; alt: string; onClose: () => void }) => (
+  <AnimatePresence>
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-background/90 backdrop-blur-md p-4"
+      onClick={onClose}
+    >
+      <button onClick={onClose} className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-secondary">
+        <X size={20} />
+      </button>
+      <motion.img
+        initial={{ scale: 0.8 }}
+        animate={{ scale: 1 }}
+        src={src}
+        alt={alt}
+        className="max-h-[85vh] max-w-full rounded-xl object-contain"
+        onClick={(e) => e.stopPropagation()}
+      />
+    </motion.div>
+  </AnimatePresence>
+);
 
 const rarityColors: Record<string, string> = {
   "Común": "bg-muted text-muted-foreground",
