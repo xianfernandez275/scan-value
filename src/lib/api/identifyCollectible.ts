@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 export interface IdentificationResult {
   name: string;
   category: string;
+  subcategory: string;
   year: number;
   set_or_edition: string;
   catalog_id: string;
@@ -15,6 +16,15 @@ export interface IdentificationResult {
   description: string;
   estimated_value_usd: number;
   confidence: number;
+}
+
+export interface MarketData {
+  averagePrice?: number;
+  lowPrice?: number;
+  highPrice?: number;
+  lastUpdated?: string;
+  trending?: 'up' | 'down' | 'stable';
+  source?: string;
 }
 
 export interface OfficialImage {
