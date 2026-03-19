@@ -17,7 +17,9 @@ interface ImageResult {
 
 async function searchPokemonTCG(name: string): Promise<ImageResult | null> {
   try {
-    const query = encodeURIComponent(name.replace(/[^a-zA-Z0-9\s]/g, ''));
+    // Extract the core name (first word or two) for better search results
+    const simpleName = name.replace(/[^a-zA-Z0-9\s]/g, '').split(/\s+/).slice(0, 2).join(' ');
+    const query = encodeURIComponent(simpleName);
     const response = await fetch(
       `https://api.pokemontcg.io/v2/cards?q=name:"${query}"&pageSize=1&select=id,name,images`,
       {
