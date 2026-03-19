@@ -44,6 +44,8 @@ export interface IdentifyResponse {
   officialImage: OfficialImage | null;
   candidates: OfficialImage[];
   needsConfirmation: boolean;
+  provider?: string;
+  marketData?: MarketData;
   error?: string;
 }
 
