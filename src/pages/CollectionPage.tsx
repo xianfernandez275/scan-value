@@ -57,9 +57,7 @@ const CollectionPage = () => {
                 transition={{ delay: 0.2 + i * 0.1 }}
                 className="glass flex items-center gap-4 rounded-xl p-4"
               >
-                <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-secondary text-2xl">
-                  {item.category === "Cómics" ? "📚" : item.category === "Cartas" ? "🃏" : "🪙"}
-                </div>
+                <CollectibleImage name={item.name} category={item.category} size="sm" />
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold truncate">{item.name}</p>
                   <p className="text-xs text-muted-foreground">{item.year} · {item.condition}</p>

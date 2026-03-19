@@ -29,7 +29,8 @@ const ResultCard = ({ item, index }: { item: CollectibleItem; index: number }) =
       className="glass rounded-2xl overflow-hidden"
     >
       <div className="p-5 cursor-pointer" onClick={() => setExpanded(!expanded)}>
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex items-start gap-4">
+          <CollectibleImage name={item.name} category={item.category} size="sm" />
           <div className="flex-1">
             <div className="flex items-center gap-2 flex-wrap">
               <Badge className={rarityColors[item.rarity]}>{item.rarity}</Badge>
