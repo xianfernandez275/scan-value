@@ -45,6 +45,8 @@ const ResultsPage = () => {
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
   const [selectedImage, setSelectedImage] = useState<OfficialImage | null>(null);
   const [showCandidates, setShowCandidates] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     const stored = sessionStorage.getItem('scanResult');
