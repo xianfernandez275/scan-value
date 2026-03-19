@@ -83,6 +83,13 @@ export async function removeFromCollection(id: string): Promise<void> {
     .from('collection_items')
     .delete()
     .eq('id', id);
+  if (error) throw new Error(error.message);
+}
 
+export async function updateItemNotes(id: string, notes: string): Promise<void> {
+  const { error } = await supabase
+    .from('collection_items')
+    .update({ notes })
+    .eq('id', id);
   if (error) throw new Error(error.message);
 }
