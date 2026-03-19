@@ -42,6 +42,7 @@ const ResultsPage = () => {
   const navigate = useNavigate();
   const [result, setResult] = useState<IdentifyResponse | null>(null);
   const [userPhoto, setUserPhoto] = useState<string | null>(null);
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
 
   useEffect(() => {
     const stored = sessionStorage.getItem('scanResult');
