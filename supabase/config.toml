@@ -1,1 +1,4 @@
 project_id = "hvfqtgywgtikekqnmxpx"
+
+[functions.search-collectible-image]
+verify_jwt = false
