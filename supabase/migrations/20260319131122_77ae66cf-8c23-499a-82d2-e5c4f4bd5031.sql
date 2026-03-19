@@ -1,0 +1,1 @@
+ALTER TABLE public.collection_items ADD COLUMN notes TEXT DEFAULT '';

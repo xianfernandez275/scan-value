@@ -26,6 +26,7 @@ export interface CollectionItem {
   official_card_id: string | null;
   official_set_name: string | null;
   official_card_number: string | null;
+  notes: string | null;
 }
 
 export async function addToCollection(
@@ -82,6 +83,13 @@ export async function removeFromCollection(id: string): Promise<void> {
     .from('collection_items')
     .delete()
     .eq('id', id);
+  if (error) throw new Error(error.message);
+}
 
+export async function updateItemNotes(id: string, notes: string): Promise<void> {
+  const { error } = await supabase
+    .from('collection_items')
+    .update({ notes })
+    .eq('id', id);
   if (error) throw new Error(error.message);
 }
