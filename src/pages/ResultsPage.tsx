@@ -5,6 +5,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { mockResults, type CollectibleItem } from "@/lib/mockData";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import CollectibleImage from "@/components/CollectibleImage";
 
 const rarityColors: Record<string, string> = {
   "Común": "bg-muted text-muted-foreground",
