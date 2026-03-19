@@ -1,11 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { ArrowLeft, Plus, TrendingUp, TrendingDown, Star, ExternalLink } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
-import { mockResults, type CollectibleItem } from "@/lib/mockData";
+import { ArrowLeft, Plus, TrendingUp, Star, ExternalLink, ShieldCheck, ImageOff } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import CollectibleImage from "@/components/CollectibleImage";
+import type { IdentifyResponse } from "@/lib/api/identifyCollectible";
 
 const rarityColors: Record<string, string> = {
   "Común": "bg-muted text-muted-foreground",
@@ -15,95 +14,151 @@ const rarityColors: Record<string, string> = {
   "Ultra Raro": "bg-primary/20 text-primary",
 };
 
-const ResultCard = ({ item, index }: { item: CollectibleItem; index: number }) => {
-  const [expanded, setExpanded] = useState(index === 0);
-  const lastPrice = item.historicalPrices[item.historicalPrices.length - 2]?.price || item.currentValue;
-  const trend = item.currentValue >= lastPrice ? "up" : "down";
-  const pct = Math.abs(((item.currentValue - lastPrice) / lastPrice) * 100).toFixed(1);
+const ResultsPage = () => {
+  const navigate = useNavigate();
+  const [result, setResult] = useState<IdentifyResponse | null>(null);
+  const [userPhoto, setUserPhoto] = useState<string | null>(null);
+
+  useEffect(() => {
+    const stored = sessionStorage.getItem('scanResult');
+    const photo = sessionStorage.getItem('userPhoto');
+    if (stored) {
+      try { setResult(JSON.parse(stored)); } catch { /* ignore */ }
+    }
+    if (photo) setUserPhoto(photo);
+
+    if (!stored) navigate('/scan');
+  }, [navigate]);
+
+  if (!result?.identification) return null;
+
+  const id = result.identification;
+  const img = result.officialImage;
+  const confidencePct = Math.round((id.confidence || 0) * 100);
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.15 }}
-      className="glass rounded-2xl overflow-hidden"
-    >
-      <div className="p-5 cursor-pointer" onClick={() => setExpanded(!expanded)}>
-        <div className="flex items-start gap-4">
-          <CollectibleImage name={item.name} category={item.category} size="sm" />
-          <div className="flex-1">
-            <div className="flex items-center gap-2 flex-wrap">
-              <Badge className={rarityColors[item.rarity]}>{item.rarity}</Badge>
-              <span className="text-xs text-muted-foreground">{item.category}</span>
-            </div>
-            <h3 className="mt-2 font-serif text-xl font-semibold">{item.name}</h3>
-            <p className="mt-1 text-sm text-muted-foreground">{item.year} · {item.version}</p>
-          </div>
-          <div className="text-right">
-            <p className="text-2xl font-bold text-primary">
-              ${item.currentValue.toLocaleString()}
-            </p>
-            <div className={`flex items-center gap-1 text-sm ${trend === "up" ? "text-green-400" : "text-red-400"}`}>
-              {trend === "up" ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
-              {pct}%
-            </div>
-          </div>
+    <div className="min-h-screen px-6 pb-24 pt-12">
+      <div className="flex items-center gap-3">
+        <button onClick={() => navigate('/scan')} className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary transition-colors hover:bg-secondary/80">
+          <ArrowLeft size={20} />
+        </button>
+        <div>
+          <h1 className="font-serif text-2xl font-bold">Resultado</h1>
+          <p className="text-sm text-muted-foreground">Confianza: {confidencePct}%</p>
         </div>
       </div>
 
-      {expanded && (
+      <div className="mt-8 space-y-6">
+        {/* Image comparison: user photo vs official */}
         <motion.div
-          initial={{ height: 0, opacity: 0 }}
-          animate={{ height: "auto", opacity: 1 }}
-          className="border-t border-border px-5 pb-5 pt-4"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="grid grid-cols-2 gap-3"
         >
-          <p className="text-sm text-muted-foreground">{item.description}</p>
-
-          <div className="mt-4">
-            <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Características</h4>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {item.specialFeatures.map((f) => (
-                <span key={f} className="rounded-full bg-secondary px-3 py-1 text-xs text-secondary-foreground">{f}</span>
-              ))}
+          {/* User photo */}
+          <div className="space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Tu foto</p>
+            <div className="aspect-[3/4] overflow-hidden rounded-xl border border-border">
+              {userPhoto ? (
+                <img src={userPhoto} alt="Tu foto" className="h-full w-full object-cover" />
+              ) : (
+                <div className="flex h-full items-center justify-center bg-secondary">
+                  <ImageOff className="text-muted-foreground" />
+                </div>
+              )}
             </div>
           </div>
 
-          <div className="mt-4 grid grid-cols-3 gap-3">
+          {/* Official image */}
+          <div className="space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Imagen oficial</p>
+            <div className="aspect-[3/4] overflow-hidden rounded-xl border border-border bg-secondary">
+              {img?.imageUrl ? (
+                <img src={img.imageUrl} alt={id.name} className="h-full w-full object-contain p-1" />
+              ) : (
+                <div className="flex h-full flex-col items-center justify-center gap-2 text-muted-foreground p-4 text-center">
+                  <ImageOff size={32} />
+                  <p className="text-xs">Imagen oficial no disponible</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Attribution */}
+        {img && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.2 }}
+            className="flex items-start gap-2 rounded-lg bg-secondary/50 p-3"
+          >
+            <ShieldCheck size={14} className="mt-0.5 shrink-0 text-green-400" />
+            <div>
+              <p className="text-[10px] text-muted-foreground">{img.attribution}</p>
+              <a href={img.sourceUrl} target="_blank" rel="noopener noreferrer" className="text-[10px] text-primary hover:underline flex items-center gap-1 mt-0.5">
+                <ExternalLink size={8} /> {img.source}
+              </a>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Identification details */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15 }}
+          className="glass rounded-2xl p-5 space-y-4"
+        >
+          <div className="flex items-center gap-2 flex-wrap">
+            <Badge className={rarityColors[id.rarity] || 'bg-muted text-muted-foreground'}>{id.rarity}</Badge>
+            <span className="text-xs text-muted-foreground">{id.category}</span>
+            <span className="text-xs text-muted-foreground">· {id.year}</span>
+          </div>
+
+          <h2 className="font-serif text-2xl font-bold">{id.name}</h2>
+          <p className="text-sm text-muted-foreground">{id.set_or_edition} · {id.catalog_id}</p>
+          <p className="text-sm text-muted-foreground">{id.description}</p>
+
+          {/* Value */}
+          <div className="flex items-center justify-between rounded-xl bg-primary/10 p-4">
+            <div>
+              <p className="text-xs text-muted-foreground">Valor estimado</p>
+              <p className="text-3xl font-bold text-primary">${id.estimated_value_usd.toLocaleString()}</p>
+            </div>
+            <TrendingUp size={28} className="text-primary" />
+          </div>
+
+          {/* Stats grid */}
+          <div className="grid grid-cols-3 gap-3">
             <div className="rounded-lg bg-secondary p-3 text-center">
               <p className="text-xs text-muted-foreground">Condición</p>
-              <p className="mt-1 text-sm font-semibold">{item.condition}</p>
-            </div>
-            <div className="rounded-lg bg-secondary p-3 text-center">
-              <p className="text-xs text-muted-foreground">Demanda</p>
-              <p className="mt-1 text-sm font-semibold">{item.demand}</p>
+              <p className="mt-1 text-sm font-semibold">{id.condition_estimate}</p>
             </div>
             <div className="rounded-lg bg-secondary p-3 text-center">
               <p className="text-xs text-muted-foreground">Año</p>
-              <p className="mt-1 text-sm font-semibold">{item.year}</p>
+              <p className="mt-1 text-sm font-semibold">{id.year}</p>
+            </div>
+            <div className="rounded-lg bg-secondary p-3 text-center">
+              <p className="text-xs text-muted-foreground">Confianza</p>
+              <p className="mt-1 text-sm font-semibold">{confidencePct}%</p>
             </div>
           </div>
 
-          {/* Mini price chart */}
-          <div className="mt-4">
-            <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Historial de precios</h4>
-            <div className="mt-3 flex items-end gap-1 h-16">
-              {item.historicalPrices.map((p, i) => {
-                const max = Math.max(...item.historicalPrices.map((x) => x.price));
-                const height = (p.price / max) * 100;
-                return (
-                  <div key={i} className="flex flex-1 flex-col items-center gap-1">
-                    <div
-                      className="w-full rounded-t gradient-gold transition-all"
-                      style={{ height: `${height}%` }}
-                    />
-                    <span className="text-[9px] text-muted-foreground">{p.date.slice(2, 7)}</span>
-                  </div>
-                );
-              })}
+          {/* Special features */}
+          {id.special_features.length > 0 && (
+            <div>
+              <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Características</h4>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {id.special_features.map((f) => (
+                  <span key={f} className="rounded-full bg-secondary px-3 py-1 text-xs text-secondary-foreground">{f}</span>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
-          <div className="mt-4 flex gap-2">
+          {/* Actions */}
+          <div className="flex gap-2 pt-2">
             <Button size="sm" className="flex-1 gap-1">
               <Plus size={14} /> Añadir a colección
             </Button>
@@ -112,30 +167,6 @@ const ResultCard = ({ item, index }: { item: CollectibleItem; index: number }) =
             </Button>
           </div>
         </motion.div>
-      )}
-    </motion.div>
-  );
-};
-
-const ResultsPage = () => {
-  const navigate = useNavigate();
-
-  return (
-    <div className="min-h-screen px-6 pb-24 pt-12">
-      <div className="flex items-center gap-3">
-        <button onClick={() => navigate(-1)} className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary transition-colors hover:bg-secondary/80">
-          <ArrowLeft size={20} />
-        </button>
-        <div>
-          <h1 className="font-serif text-2xl font-bold">Resultados</h1>
-          <p className="text-sm text-muted-foreground">{mockResults.length} coincidencias encontradas</p>
-        </div>
-      </div>
-
-      <div className="mt-8 space-y-4">
-        {mockResults.map((item, i) => (
-          <ResultCard key={item.id} item={item} index={i} />
-        ))}
       </div>
     </div>
   );

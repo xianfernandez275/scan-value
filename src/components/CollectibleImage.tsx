@@ -13,6 +13,7 @@ interface CollectibleImageProps {
   name: string;
   category: string;
   userImage?: string;
+  officialImageUrl?: string;
   className?: string;
   size?: "sm" | "md" | "lg";
 }
@@ -32,37 +33,22 @@ const categoryEmojis: Record<string, string> = {
   "Vinilos": "🎵",
 };
 
-const knownPokemon = [
-  'charizard', 'pikachu', 'mewtwo', 'blastoise', 'venusaur', 'gengar',
-  'dragonite', 'gyarados', 'lugia', 'rayquaza', 'mew', 'eevee', 'snorlax',
-  'machamp', 'alakazam', 'zapdos', 'moltres', 'articuno', 'raichu',
-  'arcanine', 'ninetales', 'lapras', 'vaporeon', 'jolteon', 'flareon',
-  'umbreon', 'espeon', 'tyranitar', 'gardevoir', 'salamence', 'metagross',
-];
-
-function extractPokemonName(name: string): string | null {
-  const lower = name.toLowerCase();
-  for (const pokemon of knownPokemon) {
-    if (lower.includes(pokemon)) return pokemon;
-  }
-  return null;
-}
-
-async function fetchPokemonImage(name: string): Promise<ImageResult | null> {
-  const pokemonName = extractPokemonName(name);
-  if (!pokemonName) return null;
-
+async function fetchPokemonTCGImage(name: string): Promise<ImageResult | null> {
   try {
-    const res = await fetch(`https://pokeapi.co/api/v2/pokemon/${pokemonName}`);
+    // Extract likely Pokémon name (first word)
+    const pokemonName = name.split(/\s+/)[0];
+    const res = await fetch(
+      `https://api.pokemontcg.io/v2/cards?q=name:"${encodeURIComponent(pokemonName)}"&pageSize=1&orderBy=-set.releaseDate`
+    );
     if (!res.ok) return null;
     const data = await res.json();
-    const artwork = data.sprites?.other?.['official-artwork']?.front_default;
-    if (!artwork) return null;
+    const card = data.data?.[0];
+    if (!card?.images) return null;
     return {
-      imageUrl: artwork,
-      source: 'PokéAPI',
-      attribution: '© Nintendo/Creatures Inc./GAME FREAK inc.',
-      sourceUrl: `https://pokeapi.co/api/v2/pokemon/${pokemonName}`,
+      imageUrl: card.images.large || card.images.small,
+      source: 'Pokémon TCG API',
+      attribution: '© Nintendo/Creatures Inc./GAME FREAK inc. via pokemontcg.io',
+      sourceUrl: `https://pokemontcg.io/card/${card.id}`,
     };
   } catch {
     return null;
@@ -73,15 +59,16 @@ const CollectibleImage = ({
   name,
   category,
   userImage,
+  officialImageUrl,
   className = "",
   size = "md",
 }: CollectibleImageProps) => {
   const [imageData, setImageData] = useState<ImageResult | null>(null);
-  const [loading, setLoading] = useState(!userImage);
+  const [loading, setLoading] = useState(!userImage && !officialImageUrl);
   const [error, setError] = useState(false);
 
   useEffect(() => {
-    if (userImage) return;
+    if (userImage || officialImageUrl) return;
 
     let cancelled = false;
     setLoading(true);
@@ -89,22 +76,20 @@ const CollectibleImage = ({
 
     const cat = category.toLowerCase();
 
-    // For cards, try PokéAPI directly (fast, CORS-enabled)
     if (cat.includes('carta') || cat.includes('card')) {
-      fetchPokemonImage(name).then((result) => {
+      fetchPokemonTCGImage(name).then((result) => {
         if (cancelled) return;
         setImageData(result);
         setLoading(false);
       });
     } else {
-      // For other categories, show placeholder (edge function handles these when API keys are configured)
       setLoading(false);
     }
 
     return () => { cancelled = true; };
-  }, [name, category, userImage]);
+  }, [name, category, userImage, officialImageUrl]);
 
-  const displayImage = userImage || imageData?.imageUrl;
+  const displayImage = officialImageUrl || userImage || imageData?.imageUrl;
 
   if (loading) {
     return <Skeleton className={`${sizeClasses[size]} rounded-lg ${className}`} />;
@@ -126,7 +111,7 @@ const CollectibleImage = ({
         className={`${sizeClasses[size]} rounded-lg object-contain bg-secondary`}
         onError={() => setError(true)}
       />
-      {imageData && !userImage && (
+      {imageData && !userImage && !officialImageUrl && (
         <div className="absolute inset-x-0 bottom-0 rounded-b-lg bg-background/80 backdrop-blur-sm px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity">
           <p className="text-[9px] text-muted-foreground flex items-center gap-1">
             <ExternalLink size={8} />
