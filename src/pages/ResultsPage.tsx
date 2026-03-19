@@ -85,7 +85,7 @@ const ResultsPage = () => {
             <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Tu foto</p>
             <div className="aspect-[3/4] overflow-hidden rounded-xl border border-border">
               {userPhoto ? (
-                <img src={userPhoto} alt="Tu foto" className="h-full w-full object-cover" />
+                <img src={userPhoto} alt="Tu foto" className="h-full w-full object-cover cursor-zoom-in" onClick={() => setLightboxSrc(userPhoto)} />
               ) : (
                 <div className="flex h-full items-center justify-center bg-secondary">
                   <ImageOff className="text-muted-foreground" />
