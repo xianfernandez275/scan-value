@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { BookOpen, TrendingUp, DollarSign, Package } from "lucide-react";
 import { mockResults, type CollectibleItem } from "@/lib/mockData";
 import { Badge } from "@/components/ui/badge";
+import CollectibleImage from "@/components/CollectibleImage";
 
 const CollectionPage = () => {
   const [collection] = useState<CollectibleItem[]>(mockResults.slice(0, 2));
