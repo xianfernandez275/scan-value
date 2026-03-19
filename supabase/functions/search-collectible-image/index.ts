@@ -15,40 +15,73 @@ interface ImageResult {
   sourceUrl: string;
 }
 
-async function searchPokemonTCG(name: string): Promise<ImageResult | null> {
+async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs = 6000): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    // Extract just the first word for reliable matching
-    const firstName = name.replace(/[^a-zA-Z0-9\s]/g, '').split(/\s+/)[0];
-    const query = encodeURIComponent(firstName);
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 8000);
-    const response = await fetch(
-      `https://api.pokemontcg.io/v2/cards?q=name:${query}&pageSize=1&select=id,name,images`,
-      {
-        headers: { 'Content-Type': 'application/json' },
-        signal: controller.signal,
-      }
-    );
+    const response = await fetch(url, { ...options, signal: controller.signal });
     clearTimeout(timeout);
+    return response;
+  } catch (e) {
+    clearTimeout(timeout);
+    throw e;
+  }
+}
+
+// Extract a Pokémon name from a collectible card name
+function extractPokemonName(name: string): string | null {
+  const lower = name.toLowerCase();
+  // Common Pokémon names that appear in card names
+  const knownPokemon = [
+    'charizard', 'pikachu', 'mewtwo', 'blastoise', 'venusaur', 'gengar',
+    'dragonite', 'gyarados', 'lugia', 'ho-oh', 'rayquaza', 'mew',
+    'eevee', 'snorlax', 'machamp', 'alakazam', 'zapdos', 'moltres',
+    'articuno', 'raichu', 'arcanine', 'ninetales', 'jigglypuff',
+    'magikarp', 'lapras', 'ditto', 'vaporeon', 'jolteon', 'flareon',
+    'umbreon', 'espeon', 'tyranitar', 'gardevoir', 'salamence',
+    'metagross', 'dialga', 'palkia', 'giratina', 'arceus',
+    'reshiram', 'zekrom', 'kyurem', 'xerneas', 'yveltal',
+    'zacian', 'zamazenta', 'eternatus',
+  ];
+
+  for (const pokemon of knownPokemon) {
+    if (lower.includes(pokemon)) return pokemon;
+  }
+
+  // Fallback: first word
+  const firstWord = name.replace(/[^a-zA-Z]/g, ' ').trim().split(/\s+/)[0]?.toLowerCase();
+  return firstWord || null;
+}
+
+async function searchPokemonImage(name: string): Promise<ImageResult | null> {
+  const pokemonName = extractPokemonName(name);
+  if (!pokemonName) return null;
+
+  try {
+    const response = await fetchWithTimeout(
+      `https://pokeapi.co/api/v2/pokemon/${pokemonName}`
+    );
 
     if (!response.ok) {
-      console.error('Pokemon TCG API error:', response.status);
+      console.log(`PokéAPI: no result for "${pokemonName}"`);
       return null;
     }
 
     const data = await response.json();
-    if (data.data && data.data.length > 0) {
-      const card = data.data[0];
-      return {
-        imageUrl: card.images?.large || card.images?.small || '',
-        source: 'Pokémon TCG API',
-        attribution: 'Images provided by pokemontcg.io. Pokémon and its trademarks are © Nintendo/Creatures Inc./GAME FREAK inc.',
-        sourceUrl: `https://pokemontcg.io/card/${card.id}`,
-      };
-    }
-    return null;
+    const artwork = data.sprites?.other?.['official-artwork']?.front_default;
+    const fallback = data.sprites?.front_default;
+    const imageUrl = artwork || fallback;
+
+    if (!imageUrl) return null;
+
+    return {
+      imageUrl,
+      source: 'PokéAPI',
+      attribution: 'Pokémon images © Nintendo/Creatures Inc./GAME FREAK inc. Data from PokéAPI (pokeapi.co)',
+      sourceUrl: `https://pokeapi.co/api/v2/pokemon/${pokemonName}`,
+    };
   } catch (error) {
-    console.error('Pokemon TCG search error:', error);
+    console.error('PokéAPI search error:', error);
     return null;
   }
 }
@@ -56,26 +89,21 @@ async function searchPokemonTCG(name: string): Promise<ImageResult | null> {
 async function searchComicVine(name: string): Promise<ImageResult | null> {
   const apiKey = Deno.env.get('COMIC_VINE_API_KEY');
   if (!apiKey) {
-    console.log('COMIC_VINE_API_KEY not configured, skipping Comic Vine search');
+    console.log('COMIC_VINE_API_KEY not configured');
     return null;
   }
 
   try {
     const query = encodeURIComponent(name);
-    const response = await fetch(
+    const response = await fetchWithTimeout(
       `https://comicvine.gamespot.com/api/search/?api_key=${apiKey}&format=json&query=${query}&resources=issue&limit=1&field_list=id,name,image,site_detail_url`,
-      {
-        headers: { 'User-Agent': 'ColecScan/1.0' },
-      }
+      { headers: { 'User-Agent': 'ColecScan/1.0' } }
     );
 
-    if (!response.ok) {
-      console.error('Comic Vine API error:', response.status);
-      return null;
-    }
+    if (!response.ok) return null;
 
     const data = await response.json();
-    if (data.results && data.results.length > 0) {
+    if (data.results?.[0]) {
       const issue = data.results[0];
       return {
         imageUrl: issue.image?.medium_url || issue.image?.small_url || '',
@@ -92,36 +120,26 @@ async function searchComicVine(name: string): Promise<ImageResult | null> {
 }
 
 async function searchNumista(name: string): Promise<ImageResult | null> {
-  // Numista requires API key - return null if not configured
   const apiKey = Deno.env.get('NUMISTA_API_KEY');
   if (!apiKey) {
-    console.log('NUMISTA_API_KEY not configured, skipping Numista search');
+    console.log('NUMISTA_API_KEY not configured');
     return null;
   }
 
   try {
     const query = encodeURIComponent(name);
-    const response = await fetch(
+    const response = await fetchWithTimeout(
       `https://api.numista.com/api/v3/coins?q=${query}&count=1`,
-      {
-        headers: {
-          'Numista-API-Key': apiKey,
-          'Accept': 'application/json',
-        },
-      }
+      { headers: { 'Numista-API-Key': apiKey, 'Accept': 'application/json' } }
     );
 
-    if (!response.ok) {
-      console.error('Numista API error:', response.status);
-      return null;
-    }
+    if (!response.ok) return null;
 
     const data = await response.json();
-    if (data.coins && data.coins.length > 0) {
+    if (data.coins?.[0]) {
       const coin = data.coins[0];
-      const obverseUrl = coin.obverse?.picture || '';
       return {
-        imageUrl: obverseUrl,
+        imageUrl: coin.obverse?.picture || '',
         source: 'Numista',
         attribution: 'Data provided by Numista (en.numista.com)',
         sourceUrl: `https://en.numista.com/catalogue/pieces${coin.id}.html`,
@@ -152,32 +170,25 @@ Deno.serve(async (req) => {
     console.log(`Searching image for: "${name}" in category: "${category}"`);
 
     let result: ImageResult | null = null;
-
-    // Route to appropriate API based on category
     const cat = (category || '').toLowerCase();
 
     if (cat.includes('carta') || cat.includes('card')) {
-      result = await searchPokemonTCG(name);
+      result = await searchPokemonImage(name);
     } else if (cat.includes('cómic') || cat.includes('comic')) {
       result = await searchComicVine(name);
     } else if (cat.includes('moneda') || cat.includes('coin')) {
       result = await searchNumista(name);
     }
 
-    // Fallback: only try Pokémon TCG (free, no key needed)
+    // Fallback for unknown categories
     if (!result) {
-      result = await searchPokemonTCG(name);
+      result = await searchPokemonImage(name);
     }
 
-    if (result) {
-      return new Response(
-        JSON.stringify({ success: true, data: result }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    console.log(`Result for "${name}": ${result ? 'found' : 'not found'}`);
 
     return new Response(
-      JSON.stringify({ success: true, data: null, message: 'No licensed image found' }),
+      JSON.stringify({ success: true, data: result }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
