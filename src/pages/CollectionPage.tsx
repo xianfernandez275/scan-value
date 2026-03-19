@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { BookOpen, TrendingUp, DollarSign, Package } from "lucide-react";
 import { mockResults, type CollectibleItem } from "@/lib/mockData";
 import { Badge } from "@/components/ui/badge";
+import CollectibleImage from "@/components/CollectibleImage";
 
 const CollectionPage = () => {
   const [collection] = useState<CollectibleItem[]>(mockResults.slice(0, 2));
@@ -56,9 +57,7 @@ const CollectionPage = () => {
                 transition={{ delay: 0.2 + i * 0.1 }}
                 className="glass flex items-center gap-4 rounded-xl p-4"
               >
-                <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-secondary text-2xl">
-                  {item.category === "Cómics" ? "📚" : item.category === "Cartas" ? "🃏" : "🪙"}
-                </div>
+                <CollectibleImage name={item.name} category={item.category} size="sm" />
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold truncate">{item.name}</p>
                   <p className="text-xs text-muted-foreground">{item.year} · {item.condition}</p>
