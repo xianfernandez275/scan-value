@@ -1,10 +1,34 @@
 import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
-import { ArrowLeft, Plus, TrendingUp, Star, ExternalLink, ShieldCheck, ImageOff } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { ArrowLeft, Plus, TrendingUp, Star, ExternalLink, ShieldCheck, ImageOff, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import type { IdentifyResponse } from "@/lib/api/identifyCollectible";
+
+const ImageLightbox = ({ src, alt, onClose }: { src: string; alt: string; onClose: () => void }) => (
+  <AnimatePresence>
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-background/90 backdrop-blur-md p-4"
+      onClick={onClose}
+    >
+      <button onClick={onClose} className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-secondary">
+        <X size={20} />
+      </button>
+      <motion.img
+        initial={{ scale: 0.8 }}
+        animate={{ scale: 1 }}
+        src={src}
+        alt={alt}
+        className="max-h-[85vh] max-w-full rounded-xl object-contain"
+        onClick={(e) => e.stopPropagation()}
+      />
+    </motion.div>
+  </AnimatePresence>
+);
 
 const rarityColors: Record<string, string> = {
   "Común": "bg-muted text-muted-foreground",
@@ -18,6 +42,7 @@ const ResultsPage = () => {
   const navigate = useNavigate();
   const [result, setResult] = useState<IdentifyResponse | null>(null);
   const [userPhoto, setUserPhoto] = useState<string | null>(null);
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
 
   useEffect(() => {
     const stored = sessionStorage.getItem('scanResult');
@@ -60,7 +85,7 @@ const ResultsPage = () => {
             <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Tu foto</p>
             <div className="aspect-[3/4] overflow-hidden rounded-xl border border-border">
               {userPhoto ? (
-                <img src={userPhoto} alt="Tu foto" className="h-full w-full object-cover" />
+                <img src={userPhoto} alt="Tu foto" className="h-full w-full object-cover cursor-zoom-in" onClick={() => setLightboxSrc(userPhoto)} />
               ) : (
                 <div className="flex h-full items-center justify-center bg-secondary">
                   <ImageOff className="text-muted-foreground" />
@@ -74,7 +99,7 @@ const ResultsPage = () => {
             <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Imagen oficial</p>
             <div className="aspect-[3/4] overflow-hidden rounded-xl border border-border bg-secondary">
               {img?.imageUrl ? (
-                <img src={img.imageUrl} alt={id.name} className="h-full w-full object-contain p-1" />
+                <img src={img.imageUrl} alt={id.name} className="h-full w-full object-contain p-1 cursor-zoom-in" onClick={() => setLightboxSrc(img.imageUrl)} />
               ) : (
                 <div className="flex h-full flex-col items-center justify-center gap-2 text-muted-foreground p-4 text-center">
                   <ImageOff size={32} />
@@ -168,6 +193,10 @@ const ResultsPage = () => {
           </div>
         </motion.div>
       </div>
+
+      {lightboxSrc && (
+        <ImageLightbox src={lightboxSrc} alt={id.name} onClose={() => setLightboxSrc(null)} />
+      )}
     </div>
   );
 };
