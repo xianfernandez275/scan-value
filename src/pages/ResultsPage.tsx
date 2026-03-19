@@ -250,8 +250,25 @@ const ResultsPage = () => {
           )}
 
           <div className="flex gap-2 pt-2">
-            <Button size="sm" className="flex-1 gap-1">
-              <Plus size={14} /> Añadir a colección
+            <Button
+              size="sm"
+              className="flex-1 gap-1"
+              disabled={saving || saved}
+              onClick={async () => {
+                setSaving(true);
+                try {
+                  await addToCollection(id, selectedImage, userPhoto);
+                  setSaved(true);
+                  toast.success("Artículo añadido a tu colección");
+                } catch (err: any) {
+                  toast.error("Error al guardar: " + err.message);
+                } finally {
+                  setSaving(false);
+                }
+              }}
+            >
+              {saving ? <Loader2 size={14} className="animate-spin" /> : saved ? <CheckCircle2 size={14} /> : <Plus size={14} />}
+              {saved ? "Añadido" : "Añadir a colección"}
             </Button>
             <Button size="sm" variant="outline" className="gap-1">
               <ExternalLink size={14} /> Mercado
