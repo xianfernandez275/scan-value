@@ -164,15 +164,9 @@ Deno.serve(async (req) => {
       result = await searchNumista(name);
     }
 
-    // Fallback: try all APIs
+    // Fallback: only try Pokémon TCG (free, no key needed)
     if (!result) {
       result = await searchPokemonTCG(name);
-    }
-    if (!result) {
-      result = await searchComicVine(name);
-    }
-    if (!result) {
-      result = await searchNumista(name);
     }
 
     if (result) {
