@@ -17,15 +17,19 @@ interface ImageResult {
 
 async function searchPokemonTCG(name: string): Promise<ImageResult | null> {
   try {
-    // Extract the core name (first word or two) for better search results
-    const simpleName = name.replace(/[^a-zA-Z0-9\s]/g, '').split(/\s+/).slice(0, 2).join(' ');
-    const query = encodeURIComponent(simpleName);
+    // Extract just the first word for reliable matching
+    const firstName = name.replace(/[^a-zA-Z0-9\s]/g, '').split(/\s+/)[0];
+    const query = encodeURIComponent(firstName);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
     const response = await fetch(
-      `https://api.pokemontcg.io/v2/cards?q=name:"${query}"&pageSize=1&select=id,name,images`,
+      `https://api.pokemontcg.io/v2/cards?q=name:${query}&pageSize=1&select=id,name,images`,
       {
         headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
       }
     );
+    clearTimeout(timeout);
 
     if (!response.ok) {
       console.error('Pokemon TCG API error:', response.status);
