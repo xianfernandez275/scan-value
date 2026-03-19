@@ -26,6 +26,7 @@ export type Database = {
           estimated_value_usd: number | null
           id: string
           name: string
+          notes: string | null
           official_card_id: string | null
           official_card_number: string | null
           official_image_attribution: string | null
@@ -52,6 +53,7 @@ export type Database = {
           estimated_value_usd?: number | null
           id?: string
           name: string
+          notes?: string | null
           official_card_id?: string | null
           official_card_number?: string | null
           official_image_attribution?: string | null
@@ -78,6 +80,7 @@ export type Database = {
           estimated_value_usd?: number | null
           id?: string
           name?: string
+          notes?: string | null
           official_card_id?: string | null
           official_card_number?: string | null
           official_image_attribution?: string | null
