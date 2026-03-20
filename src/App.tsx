@@ -10,6 +10,7 @@ import ResultsPage from "./pages/ResultsPage";
 import CollectionPage from "./pages/CollectionPage";
 import MarketPage from "./pages/MarketPage";
 import CategoryMarketPage from "./pages/CategoryMarketPage";
+import SearchPage from "./pages/SearchPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();

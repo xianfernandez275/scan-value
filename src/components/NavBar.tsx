@@ -1,10 +1,11 @@
 import { Link, useLocation } from "react-router-dom";
-import { Camera, Home, BookOpen, TrendingUp } from "lucide-react";
+import { Camera, Home, BookOpen, TrendingUp, Search } from "lucide-react";
 import { motion } from "framer-motion";
 
 const navItems = [
   { path: "/", label: "Inicio", icon: Home },
   { path: "/scan", label: "Escanear", icon: Camera },
+  { path: "/search", label: "Buscar", icon: Search },
   { path: "/collection", label: "Colección", icon: BookOpen },
   { path: "/market", label: "Mercado", icon: TrendingUp },
 ];
