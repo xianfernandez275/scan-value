@@ -77,10 +77,49 @@ const ResultsPage = () => {
   const img = selectedImage;
   const confidencePct = Math.round((id.confidence || 0) * 100);
   const isLowConfidence = id.confidence < 0.7;
+  const isCoin = id.category === 'Monedas';
 
   const handleSelectCandidate = (candidate: OfficialImage) => {
     setSelectedImage(candidate);
     setShowCandidates(false);
+  };
+
+  const handleCoinRefine = async (refinement: CoinRefinement) => {
+    setRefiningCoin(true);
+    try {
+      const refined = await refineCoinIdentification(refinement, id);
+      setResult(refined);
+      setSelectedImage(refined.officialImage || null);
+      if (refined.needsConfirmation && refined.candidates.length > 0) {
+        setShowCandidates(true);
+      }
+      toast.success("Resultados actualizados");
+    } catch (err: any) {
+      toast.error("Error al refinar: " + err.message);
+    } finally {
+      setRefiningCoin(false);
+    }
+  };
+
+  const handleCoinManualSearch = async (query: string) => {
+    setRefiningCoin(true);
+    try {
+      const parts = query.split(/\s+/);
+      const refined = await refineCoinIdentification(
+        { denomination: query, originalName: id.name },
+        { ...id, name: query },
+      );
+      setResult(refined);
+      setSelectedImage(refined.officialImage || null);
+      if (refined.needsConfirmation && refined.candidates.length > 0) {
+        setShowCandidates(true);
+      }
+      toast.success("Resultados de búsqueda");
+    } catch (err: any) {
+      toast.error("Error en búsqueda: " + err.message);
+    } finally {
+      setRefiningCoin(false);
+    }
   };
 
   return (
