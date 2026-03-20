@@ -28,6 +28,7 @@ const App = () => (
               <Route path="/scan" element={<ScanPage />} />
               <Route path="/results" element={<ResultsPage />} />
               <Route path="/collection" element={<CollectionPage />} />
+              <Route path="/search" element={<SearchPage />} />
               <Route path="/market" element={<MarketPage />} />
               <Route path="/market/:categoryId" element={<CategoryMarketPage />} />
               <Route path="*" element={<NotFound />} />
