@@ -47,7 +47,7 @@ Los porcentajes de cambio deben reflejar tendencias reales del mercado de los ú
 
     const userPrompt = `Dame datos de mercado actualizados para la categoría: ${categoryLabel} (${examples}).
 
-Necesito exactamente este formato JSON con 8-10 artículos reales de esta categoría:
+Necesito exactamente este formato JSON con 20 artículos reales de esta categoría:
 {
   "items": [
     {
