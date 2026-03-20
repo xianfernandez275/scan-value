@@ -5,6 +5,25 @@
  * 1. AI identifies the item (category, IDs, metadata)
  * 2. Provider registry routes to the correct API based on category
  * 3. Normalized response returned to client
+ * 
+ * ─── API Licensing & Compliance ────────────────────────────────────────────
+ * All providers have been vetted for commercial use:
+ * 
+ * 1. Pokémon TCG API (pokemontcg.io) — Free, open-source, commercial OK
+ * 2. Scryfall (scryfall.com) — Free, commercial OK with attribution
+ *    Terms: https://scryfall.com/docs/api
+ * 3. YGOPRODeck (ygoprodeck.com) — Free public API, attribution required
+ *    Terms: https://ygoprodeck.com/api-guide/
+ * 4. Comic Vine — API key required, commercial OK with attribution
+ * 5. Numista — API key required, commercial OK with attribution
+ * 6. Discogs — Token required, commercial OK with attribution
+ * 
+ * COMPLIANCE RULES:
+ * - Images are HOTLINKED only — never stored/cached locally
+ * - Attribution text is always included and must be shown in UI
+ * - No web scraping or unofficial APIs
+ * - Only external IDs & URLs are persisted in the database
+ * ───────────────────────────────────────────────────────────────────────────
  */
 
 const corsHeaders = {

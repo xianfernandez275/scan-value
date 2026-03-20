@@ -1,4 +1,12 @@
-// v2 - Using PokéAPI for reliable Pokémon images
+/**
+ * Collectible Image Search — Fallback image lookup
+ * 
+ * APIs used (all commercial-OK):
+ * - PokéAPI: Free, MIT license (pokeapi.co)
+ * - Comic Vine: API key required, commercial OK
+ * - Numista: API key required, commercial OK
+ * Images are hotlinked only, never cached. Attribution always included.
+ */
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
