@@ -341,7 +341,6 @@ const ItemDetailModal = ({ item, onClose, onDelete, onUpdateNotes, allItems }: I
                             <CategoryPlaceholder category={other.category} className="h-full w-full" />
                           )}
                         </div>
-                        </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-xs font-semibold truncate">{other.name}</p>
                           <p className="text-[10px] text-muted-foreground">${(other.estimated_value_usd || 0).toLocaleString()}</p>
