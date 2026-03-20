@@ -272,6 +272,37 @@ export default function SearchPage() {
     setSearchQuery(s.name);
     setShowSuggestions(false);
     setSelectedIdx(-1);
+    addSearchEntry(s.name, s.category);
+    addViewedItem({
+      id: s.id,
+      name: s.name,
+      category: s.category,
+      price: s.price,
+      rarity: s.rarity,
+      year: s.year,
+      series: s.series,
+    });
+    setRecRefreshKey((k) => k + 1);
+  };
+
+  const handleRecSelectItem = (item: any) => {
+    setQuery(item.name);
+    setSearchQuery(item.name);
+    addViewedItem({
+      id: item.id,
+      name: item.name,
+      category: item.category,
+      price: item.currentPrice,
+      rarity: item.rarity,
+      year: item.year,
+      series: item.series,
+    });
+    setRecRefreshKey((k) => k + 1);
+  };
+
+  const handleRecSearchQuery = (q: string) => {
+    setQuery(q);
+    executeSearch(q);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
