@@ -186,18 +186,30 @@ function ResultCard({ item, index }: { item: SearchResult; index: number }) {
 
 export default function SearchPage() {
   const [query, setQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [selectedIdx, setSelectedIdx] = useState(-1);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [filters, setFilters] = useState<SearchFilters>({});
   const inputRef = useRef<HTMLInputElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const suggestionsRef = useRef<HTMLDivElement>(null);
+
+  // Debounce input for autocomplete (250ms)
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      setDebouncedQuery(query);
+    }, 250);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [query]);
 
   // Autocomplete
-  const { data: suggestions } = useQuery({
-    queryKey: ["autocomplete", query],
-    queryFn: () => getAutocompleteSuggestions(query),
-    enabled: query.length >= 2 && showSuggestions,
+  const { data: suggestions, isFetching: isSuggesting } = useQuery({
+    queryKey: ["autocomplete", debouncedQuery],
+    queryFn: () => getAutocompleteSuggestions(debouncedQuery),
+    enabled: debouncedQuery.length >= 1 && showSuggestions,
     staleTime: 30_000,
   });
 
@@ -210,22 +222,56 @@ export default function SearchPage() {
     retry: 1,
   });
 
+  // Close suggestions on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (suggestionsRef.current && !suggestionsRef.current.contains(e.target as Node) &&
+          inputRef.current && !inputRef.current.contains(e.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
   const handleInputChange = (val: string) => {
     setQuery(val);
     setShowSuggestions(true);
+    setSelectedIdx(-1);
   };
 
   const executeSearch = useCallback((q?: string) => {
     const searchVal = q || query;
-    if (searchVal.length < 2) return;
+    if (searchVal.length < 1) return;
     setSearchQuery(searchVal);
     setShowSuggestions(false);
+    setSelectedIdx(-1);
   }, [query]);
 
   const selectSuggestion = (s: AutocompleteSuggestion) => {
     setQuery(s.name);
     setSearchQuery(s.name);
     setShowSuggestions(false);
+    setSelectedIdx(-1);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    const items = suggestions || [];
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setSelectedIdx(prev => Math.min(prev + 1, items.length - 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setSelectedIdx(prev => Math.max(prev - 1, -1));
+    } else if (e.key === "Enter") {
+      if (selectedIdx >= 0 && items[selectedIdx]) {
+        selectSuggestion(items[selectedIdx]);
+      } else {
+        executeSearch();
+      }
+    } else if (e.key === "Escape") {
+      setShowSuggestions(false);
+    }
   };
 
   const clearFilters = () => {
@@ -243,6 +289,11 @@ export default function SearchPage() {
     if (filters.sortBy && filters.sortBy !== "relevance") count++;
     return count;
   }, [filters]);
+
+  const categoryEmoji: Record<string, string> = {
+    "Cómics": "📚", "Cartas": "🃏", "Monedas": "🪙",
+    "Juguetes": "🧸", "Sellos": "📮", "Vinilos": "🎵",
+  };
 
   return (
     <div className="min-h-screen pb-24">
