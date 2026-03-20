@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, Plus, TrendingUp, ExternalLink, ShieldCheck, X, CheckCircle2, AlertTriangle, Loader2 } from "lucide-react";
 import CategoryPlaceholder from "@/components/CategoryPlaceholder";
+import GradeSelector, { type GradeSelection, getGradeLabel } from "@/components/GradeSelector";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
