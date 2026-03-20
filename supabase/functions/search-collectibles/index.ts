@@ -12,10 +12,9 @@ serve(async (req) => {
   }
 
   try {
-    const { query, filters, mode } = await req.json();
+    const { query, filters, mode, historyContext } = await req.json();
 
-    // mode: "autocomplete" (fast, short suggestions) or "full" (detailed results)
-    if (!query && mode !== "full") {
+    if (!query && mode !== "full" && mode !== "recommendations") {
       return new Response(
         JSON.stringify({ error: "query is required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -31,7 +30,7 @@ serve(async (req) => {
     }
 
     // Build filter context
-    const filterContext = [];
+    const filterContext: string[] = [];
     if (filters?.category) filterContext.push(`Categoría: ${filters.category}`);
     if (filters?.priceMin || filters?.priceMax) filterContext.push(`Precio: $${filters.priceMin || 0} - $${filters.priceMax || '∞'}`);
     if (filters?.yearMin || filters?.yearMax) filterContext.push(`Año: ${filters.yearMin || '1800'} - ${filters.yearMax || '2025'}`);
@@ -40,8 +39,95 @@ serve(async (req) => {
     if (filters?.trend) filterContext.push(`Tendencia: ${filters.trend}`);
     const filterStr = filterContext.length > 0 ? `\nFiltros activos:\n${filterContext.join('\n')}` : '';
 
+    // ═══════════════════════════════════════════════════
+    // MODE: RECOMMENDATIONS
+    // ═══════════════════════════════════════════════════
+    if (mode === "recommendations") {
+      const ctx = historyContext || {};
+      const recentSearches: string[] = ctx.recentSearches || [];
+      const recentViewed: { name: string; category: string; rarity?: string }[] = ctx.recentViewed || [];
+      const frequentCategories: string[] = ctx.frequentCategories || [];
+
+      const hasHistory = recentSearches.length > 0 || recentViewed.length > 0;
+
+      const historyBlock = hasHistory
+        ? `
+Historial del usuario:
+- Búsquedas recientes: ${recentSearches.slice(0, 8).join(", ") || "ninguna"}
+- Artículos vistos: ${recentViewed.slice(0, 8).map(v => `${v.name} (${v.category})`).join(", ") || "ninguno"}
+- Categorías favoritas: ${frequentCategories.join(", ") || "ninguna"}`
+        : "";
+
+      const prompt = hasHistory
+        ? `Basándote en el historial del usuario, genera 8 recomendaciones personalizadas de coleccionables.
+${historyBlock}
+
+Combina artículos similares a los que ha buscado/visto con artículos populares del mercado actual.
+Prioriza: artículos relacionados con sus búsquedas > artículos trending en sus categorías favoritas > artículos populares generales.`
+        : `Genera 8 recomendaciones de coleccionables populares y trending del mercado actual 2024-2025.
+Incluye una mezcla de cartas, cómics, monedas y juguetes con precios realistas.`;
+
+      const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash-lite",
+          messages: [
+            {
+              role: "system",
+              content: `Eres un experto en coleccionables que recomienda artículos basándose en el historial del usuario.
+Responde SOLO con JSON válido, sin markdown.
+Formato:
+{
+  "recommendations": [
+    {
+      "id": "rec-unique-id",
+      "name": "Nombre completo",
+      "category": "Cómics|Cartas|Monedas|Juguetes|Sellos|Vinilos",
+      "currentPrice": 15000,
+      "rarity": "Común|Poco Común|Raro|Muy Raro|Ultra Raro",
+      "year": 1999,
+      "series": "Serie/colección",
+      "change": 12.5,
+      "reason": "Motivo breve de la recomendación (ej: 'Similar a tus búsquedas de Pokémon')",
+      "trending": true
+    }
+  ],
+  "contextLabel": "Basado en tus búsquedas" 
+}
+Precios en USD realistas. Artículos reales y reconocidos. 
+"contextLabel" debe reflejar si las recomendaciones son personalizadas o generales.`
+            },
+            { role: "user", content: prompt },
+          ],
+        }),
+      });
+
+      if (!response.ok) {
+        const status = response.status;
+        if (status === 429) return new Response(JSON.stringify({ error: "Rate limit" }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        if (status === 402) return new Response(JSON.stringify({ error: "Créditos agotados" }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        return new Response(JSON.stringify({ recommendations: [] }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
+      const aiData = await response.json();
+      const content = aiData.choices?.[0]?.message?.content || "{}";
+      try {
+        const cleaned = content.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
+        const parsed = JSON.parse(cleaned);
+        return new Response(JSON.stringify(parsed), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      } catch {
+        return new Response(JSON.stringify({ recommendations: [] }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+    }
+
+    // ═══════════════════════════════════════════════════
+    // MODE: AUTOCOMPLETE
+    // ═══════════════════════════════════════════════════
     if (mode === "autocomplete") {
-      // Fast autocomplete — use lighter model, fewer results
       const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
         headers: {
@@ -75,10 +161,8 @@ Reglas:
 
       if (!response.ok) {
         const status = response.status;
-        const text = await response.text();
         if (status === 429) return new Response(JSON.stringify({ error: "Rate limit" }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
         if (status === 402) return new Response(JSON.stringify({ error: "Créditos agotados" }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-        console.error("AI error:", status, text);
         return new Response(JSON.stringify({ suggestions: [] }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
 
@@ -93,7 +177,9 @@ Reglas:
       }
     }
 
-    // Full search
+    // ═══════════════════════════════════════════════════
+    // MODE: FULL SEARCH
+    // ═══════════════════════════════════════════════════
     const sortBy = filters?.sortBy || "relevance";
     const sortLabel: Record<string, string> = {
       relevance: "relevancia",
