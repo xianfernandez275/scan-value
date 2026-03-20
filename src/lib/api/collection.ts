@@ -27,6 +27,8 @@ export interface CollectionItem {
   official_set_name: string | null;
   official_card_number: string | null;
   notes: string | null;
+  grading_company: string | null;
+  grading_value: string | null;
 }
 
 export async function addToCollection(
