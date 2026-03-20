@@ -156,9 +156,7 @@ const ResultsPage = () => {
               {userPhoto ? (
                 <img src={userPhoto} alt="Tu foto" className="h-full w-full object-cover cursor-zoom-in" onClick={() => setLightboxSrc(userPhoto)} />
               ) : (
-                <div className="flex h-full items-center justify-center bg-secondary">
-                  <ImageOff className="text-muted-foreground" />
-                </div>
+                <CategoryPlaceholder category={id.category} className="h-full w-full" />
               )}
             </div>
           </div>
