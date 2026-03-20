@@ -9,6 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import type { IdentifyResponse, OfficialImage } from "@/lib/api/identifyCollectible";
 import { addToCollection } from "@/lib/api/collection";
+import { refineCoinIdentification } from "@/lib/api/identifyCollectible";
+import CoinDetailsForm, { type CoinRefinement } from "@/components/CoinDetailsForm";
 
 const ImageLightbox = ({ src, alt, onClose }: { src: string; alt: string; onClose: () => void }) => (
   <motion.div
