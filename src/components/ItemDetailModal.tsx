@@ -127,7 +127,7 @@ const ItemDetailModal = ({ item, onClose, onDelete, onUpdateNotes, allItems }: I
                 {item.user_photo_url ? (
                   <img src={item.user_photo_url} alt="Tu foto" className="h-full w-full object-cover cursor-zoom-in" onClick={() => setLightboxSrc(item.user_photo_url)} />
                 ) : (
-                  <div className="flex h-full items-center justify-center"><ImageOff size={24} className="text-muted-foreground" /></div>
+                  <CategoryPlaceholder category={item.category} className="h-full w-full" />
                 )}
               </div>
             </div>
