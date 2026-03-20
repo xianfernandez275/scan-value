@@ -55,6 +55,7 @@ const HomePage = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.08 }}
+              onClick={() => navigate(`/market/${cat.id}`)}
               className="glass flex flex-col items-center gap-2 rounded-xl p-4 text-center transition-all hover:border-primary/50 hover:shadow-gold cursor-pointer"
             >
               <span className="text-3xl">{cat.icon}</span>
