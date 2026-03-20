@@ -183,21 +183,46 @@ function ResultCard({ item, index }: { item: SearchResult; index: number }) {
     </ItemDetailSheet>
   );
 }
+/** Highlight matching text portions */
+function highlightMatch(text: string, query: string) {
+  if (!query) return text;
+  const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`, "gi");
+  const parts = text.split(regex);
+  return parts.map((part, i) =>
+    regex.test(part) ? (
+      <span key={i} className="text-primary font-bold">{part}</span>
+    ) : (
+      <span key={i}>{part}</span>
+    )
+  );
+}
 
 export default function SearchPage() {
   const [query, setQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [selectedIdx, setSelectedIdx] = useState(-1);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [filters, setFilters] = useState<SearchFilters>({});
   const inputRef = useRef<HTMLInputElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const suggestionsRef = useRef<HTMLDivElement>(null);
+
+  // Debounce input for autocomplete (250ms)
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      setDebouncedQuery(query);
+    }, 250);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [query]);
 
   // Autocomplete
-  const { data: suggestions } = useQuery({
-    queryKey: ["autocomplete", query],
-    queryFn: () => getAutocompleteSuggestions(query),
-    enabled: query.length >= 2 && showSuggestions,
+  const { data: suggestions, isFetching: isSuggesting } = useQuery({
+    queryKey: ["autocomplete", debouncedQuery],
+    queryFn: () => getAutocompleteSuggestions(debouncedQuery),
+    enabled: debouncedQuery.length >= 1 && showSuggestions,
     staleTime: 30_000,
   });
 
@@ -210,22 +235,56 @@ export default function SearchPage() {
     retry: 1,
   });
 
+  // Close suggestions on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (suggestionsRef.current && !suggestionsRef.current.contains(e.target as Node) &&
+          inputRef.current && !inputRef.current.contains(e.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
   const handleInputChange = (val: string) => {
     setQuery(val);
     setShowSuggestions(true);
+    setSelectedIdx(-1);
   };
 
   const executeSearch = useCallback((q?: string) => {
     const searchVal = q || query;
-    if (searchVal.length < 2) return;
+    if (searchVal.length < 1) return;
     setSearchQuery(searchVal);
     setShowSuggestions(false);
+    setSelectedIdx(-1);
   }, [query]);
 
   const selectSuggestion = (s: AutocompleteSuggestion) => {
     setQuery(s.name);
     setSearchQuery(s.name);
     setShowSuggestions(false);
+    setSelectedIdx(-1);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    const items = suggestions || [];
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setSelectedIdx(prev => Math.min(prev + 1, items.length - 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setSelectedIdx(prev => Math.max(prev - 1, -1));
+    } else if (e.key === "Enter") {
+      if (selectedIdx >= 0 && items[selectedIdx]) {
+        selectSuggestion(items[selectedIdx]);
+      } else {
+        executeSearch();
+      }
+    } else if (e.key === "Escape") {
+      setShowSuggestions(false);
+    }
   };
 
   const clearFilters = () => {
@@ -244,6 +303,11 @@ export default function SearchPage() {
     return count;
   }, [filters]);
 
+  const categoryEmoji: Record<string, string> = {
+    "Cómics": "📚", "Cartas": "🃏", "Monedas": "🪙",
+    "Juguetes": "🧸", "Sellos": "📮", "Vinilos": "🎵",
+  };
+
   return (
     <div className="min-h-screen pb-24">
       {/* Search Header */}
@@ -255,15 +319,15 @@ export default function SearchPage() {
               ref={inputRef}
               value={query}
               onChange={(e) => handleInputChange(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && executeSearch()}
-              onFocus={() => query.length >= 2 && setShowSuggestions(true)}
+              onKeyDown={handleKeyDown}
+              onFocus={() => query.length >= 1 && setShowSuggestions(true)}
               placeholder="Buscar artículos, series, IDs..."
               className="pl-10 pr-10 h-11 rounded-xl bg-secondary border-none text-base"
               autoFocus
             />
             {query && (
               <button
-                onClick={() => { setQuery(""); setSearchQuery(""); setShowSuggestions(false); }}
+                onClick={() => { setQuery(""); setSearchQuery(""); setDebouncedQuery(""); setShowSuggestions(false); }}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
               >
                 <X size={16} />
@@ -287,26 +351,76 @@ export default function SearchPage() {
 
         {/* Autocomplete Dropdown */}
         <AnimatePresence>
-          {showSuggestions && suggestions && suggestions.length > 0 && (
+          {showSuggestions && query.length >= 1 && (
             <motion.div
+              ref={suggestionsRef}
               initial={{ opacity: 0, y: -5 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -5 }}
               className="absolute left-4 right-4 z-30 mt-1 overflow-hidden rounded-xl border border-border bg-card shadow-xl"
             >
-              {suggestions.map((s, i) => (
-                <button
-                  key={s.id || i}
-                  onClick={() => selectSuggestion(s)}
-                  className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-secondary"
-                >
-                  <Search size={14} className="shrink-0 text-muted-foreground" />
-                  <div className="flex-1 min-w-0">
-                    <p className="truncate text-sm font-medium">{s.name}</p>
-                  </div>
-                  <Badge variant="outline" className="text-[10px] shrink-0">{s.category}</Badge>
-                </button>
-              ))}
+              {isSuggesting && (!suggestions || suggestions.length === 0) && (
+                <div className="flex items-center gap-3 px-4 py-3 text-muted-foreground">
+                  <Loader2 size={14} className="animate-spin" />
+                  <span className="text-sm">Buscando sugerencias...</span>
+                </div>
+              )}
+              {suggestions && suggestions.length > 0 && (
+                <>
+                  {suggestions.map((s, i) => (
+                    <button
+                      key={s.id || i}
+                      onClick={() => selectSuggestion(s)}
+                      onMouseEnter={() => setSelectedIdx(i)}
+                      className={`flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors ${
+                        selectedIdx === i ? "bg-secondary" : "hover:bg-secondary/50"
+                      }`}
+                    >
+                      {/* Category thumbnail */}
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-secondary text-lg">
+                        {categoryEmoji[s.category] || "📦"}
+                      </div>
+                      {/* Info */}
+                      <div className="flex-1 min-w-0">
+                        <p className="truncate text-sm font-medium">
+                          {highlightMatch(s.name, query)}
+                        </p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="text-[10px] text-muted-foreground">{s.category}</span>
+                          {s.series && <span className="text-[10px] text-muted-foreground">· {s.series}</span>}
+                          {s.year && <span className="text-[10px] text-muted-foreground">· {s.year}</span>}
+                        </div>
+                      </div>
+                      {/* Price & rarity */}
+                      <div className="flex flex-col items-end shrink-0">
+                        {s.price && <span className="text-xs font-bold text-primary">{formatPrice(s.price)}</span>}
+                        {s.rarity && (
+                          <span className={`text-[9px] px-1.5 py-0.5 rounded ${rarityColors[s.rarity] || "text-muted-foreground"}`}>
+                            {s.rarity}
+                          </span>
+                        )}
+                      </div>
+                    </button>
+                  ))}
+                  {/* Search all hint */}
+                  <button
+                    onClick={() => executeSearch()}
+                    className={`flex w-full items-center gap-3 px-4 py-2.5 text-left border-t border-border transition-colors ${
+                      selectedIdx === suggestions.length ? "bg-secondary" : "hover:bg-secondary/50"
+                    }`}
+                  >
+                    <Search size={14} className="text-primary" />
+                    <span className="text-sm">
+                      Buscar todos los resultados de "<span className="font-semibold">{query}</span>"
+                    </span>
+                  </button>
+                </>
+              )}
+              {!isSuggesting && suggestions && suggestions.length === 0 && query.length >= 1 && (
+                <div className="px-4 py-3 text-sm text-muted-foreground">
+                  No se encontraron sugerencias. Pulsa Enter para buscar.
+                </div>
+              )}
             </motion.div>
           )}
         </AnimatePresence>
