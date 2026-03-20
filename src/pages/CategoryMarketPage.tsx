@@ -310,6 +310,25 @@ export default function CategoryMarketPage() {
         </div>
       </div>
 
+      {isLoading && !liveData ? (
+        <div className="space-y-4 px-4 pt-6">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <div key={i} className="glass flex items-center gap-3 rounded-xl p-3 animate-pulse">
+              <div className="h-8 w-8 rounded-lg bg-muted" />
+              <div className="h-12 w-12 rounded-lg bg-muted" />
+              <div className="flex-1 space-y-2">
+                <div className="h-4 w-3/4 rounded bg-muted" />
+                <div className="h-3 w-1/2 rounded bg-muted" />
+              </div>
+              <div className="h-12 w-24 rounded bg-muted" />
+            </div>
+          ))}
+          <p className="text-center text-sm text-muted-foreground pt-4">
+            <Loader2 size={16} className="inline animate-spin mr-2" />
+            Consultando precios de mercado con IA...
+          </p>
+        </div>
+      ) : (
       <div className="space-y-8 px-4 pt-6">
         {/* Top Valuable */}
         <section>
