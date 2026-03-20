@@ -56,20 +56,18 @@ const ResultsPage = () => {
   const [refiningCoin, setRefiningCoin] = useState(false);
 
   useEffect(() => {
-    const stored = sessionStorage.getItem('scanResult');
-    const photo = sessionStorage.getItem('userPhoto');
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored) as IdentifyResponse;
-        setResult(parsed);
-        setSelectedImage(parsed.officialImage || null);
-        if (parsed.needsConfirmation && parsed.candidates.length > 0) {
-          setShowCandidates(true);
-        }
-      } catch { /* ignore */ }
+    const { scanResult, userPhoto: photo } = getScanData();
+    if (scanResult) {
+      setResult(scanResult);
+      setSelectedImage(scanResult.officialImage || null);
+      if (scanResult.needsConfirmation && scanResult.candidates.length > 0) {
+        setShowCandidates(true);
+      }
     }
     if (photo) setUserPhoto(photo);
-    if (!stored) navigate('/scan');
+    if (!scanResult) navigate('/scan');
+
+    return () => clearScanData();
   }, [navigate]);
 
   if (!result?.identification) return null;

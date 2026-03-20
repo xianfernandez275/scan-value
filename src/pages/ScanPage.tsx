@@ -36,9 +36,7 @@ const ScanPage = () => {
       const result = await identifyCollectible(image);
 
       if (result.success && result.identification) {
-        // Store result and user photo in sessionStorage for results page
-        sessionStorage.setItem('scanResult', JSON.stringify(result));
-        sessionStorage.setItem('userPhoto', image);
+        setScanData(result, image);
         navigate("/results");
       } else {
         toast.error("No se pudo identificar el artículo. Intenta con otra foto.");
