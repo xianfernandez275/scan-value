@@ -167,6 +167,7 @@ const CollectionPage = () => {
             onClose={() => setSelectedItem(null)}
             onDelete={handleRemove}
             onUpdateNotes={handleUpdateNotes}
+            onUpdateGrade={handleUpdateGrade}
           />
         )}
       </AnimatePresence>
