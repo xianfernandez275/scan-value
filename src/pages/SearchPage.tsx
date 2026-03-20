@@ -183,6 +183,19 @@ function ResultCard({ item, index }: { item: SearchResult; index: number }) {
     </ItemDetailSheet>
   );
 }
+/** Highlight matching text portions */
+function highlightMatch(text: string, query: string) {
+  if (!query) return text;
+  const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`, "gi");
+  const parts = text.split(regex);
+  return parts.map((part, i) =>
+    regex.test(part) ? (
+      <span key={i} className="text-primary font-bold">{part}</span>
+    ) : (
+      <span key={i}>{part}</span>
+    )
+  );
+}
 
 export default function SearchPage() {
   const [query, setQuery] = useState("");
