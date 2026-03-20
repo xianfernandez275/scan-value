@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { identifyCollectible, type IdentifyResponse } from "@/lib/api/identifyCollectible";
+import { setScanData } from "@/lib/scanStore";
 
 const ScanPage = () => {
   const [image, setImage] = useState<string | null>(null);
@@ -35,21 +36,22 @@ const ScanPage = () => {
       const result = await identifyCollectible(image);
 
       if (result.success && result.identification) {
-        // Store result and user photo in sessionStorage for results page
-        sessionStorage.setItem('scanResult', JSON.stringify(result));
-        sessionStorage.setItem('userPhoto', image);
+        setScanData(result, image);
         navigate("/results");
       } else {
         toast.error("No se pudo identificar el artículo. Intenta con otra foto.");
       }
     } catch (err: any) {
       console.error("Scan error:", err);
-      if (err.message?.includes('Rate limit')) {
+      const msg = err?.message || String(err);
+      if (msg.includes('Rate limit') || msg.includes('RATE_LIMIT')) {
         toast.error("Demasiadas solicitudes. Espera un momento e intenta de nuevo.");
-      } else if (err.message?.includes('credits')) {
+      } else if (msg.includes('credits') || msg.includes('CREDITS')) {
         toast.error("Créditos de IA agotados.");
+      } else if (msg.includes('FunctionsFetchError') || msg.includes('Failed to fetch')) {
+        toast.error("Error de conexión. La imagen puede ser demasiado grande. Intenta con una foto más pequeña.");
       } else {
-        toast.error("Error al analizar la imagen. Intenta de nuevo.");
+        toast.error("Error al analizar la imagen: " + msg);
       }
     } finally {
       setScanning(false);
