@@ -35,6 +35,8 @@ export async function addToCollection(
   identification: IdentificationResult,
   officialImage: OfficialImage | null,
   userPhotoBase64: string | null,
+  gradingCompany: string | null = null,
+  gradingValue: string | null = null,
 ): Promise<CollectionItem> {
   // Store user photo as base64 in the DB for now (will use storage later)
   const { data, error } = await supabase
