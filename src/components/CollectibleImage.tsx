@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
-import { ExternalLink, ImageOff } from "lucide-react";
+import { ExternalLink } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import CategoryPlaceholder from "@/components/CategoryPlaceholder";
 
 interface ImageResult {
   imageUrl: string;
@@ -24,18 +25,8 @@ const sizeClasses = {
   lg: "h-48 w-full",
 };
 
-const categoryEmojis: Record<string, string> = {
-  "Cómics": "📚",
-  "Cartas": "🃏",
-  "Monedas": "🪙",
-  "Juguetes": "🧸",
-  "Sellos": "📮",
-  "Vinilos": "🎵",
-};
-
 async function fetchPokemonTCGImage(name: string): Promise<ImageResult | null> {
   try {
-    // Extract likely Pokémon name (first word)
     const pokemonName = name.split(/\s+/)[0];
     const res = await fetch(
       `https://api.pokemontcg.io/v2/cards?q=name:"${encodeURIComponent(pokemonName)}"&pageSize=1&orderBy=-set.releaseDate`
@@ -90,21 +81,16 @@ const CollectibleImage = ({
   }, [name, category, userImage, officialImageUrl]);
 
   const displayImage = officialImageUrl || userImage || imageData?.imageUrl;
+  const attribution = imageData?.attribution;
 
   if (loading) {
     return <Skeleton className={`${sizeClasses[size]} rounded-lg ${className}`} />;
   }
 
+  // If no image available or image failed to load, show attractive placeholder
   if (!displayImage || error) {
-    return (
-      <div className={`${sizeClasses[size]} flex items-center justify-center rounded-lg bg-secondary text-2xl ${className}`}>
-        {categoryEmojis[category] || <ImageOff size={20} className="text-muted-foreground" />}
-      </div>
-    );
+    return <CategoryPlaceholder category={category} className={`${sizeClasses[size]} ${className}`} />;
   }
-
-  // Attribution text — from fetched data or passed-in official image
-  const attribution = imageData?.attribution;
 
   return (
     <div className={`relative group ${className}`}>
