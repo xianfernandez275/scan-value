@@ -13,6 +13,7 @@ import {
   getFalling,
   formatPrice,
 } from "@/lib/marketData";
+import { fetchMarketPrices } from "@/lib/api/marketPrices";
 import CategoryPlaceholder from "@/components/CategoryPlaceholder";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
