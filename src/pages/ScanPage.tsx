@@ -43,12 +43,15 @@ const ScanPage = () => {
       }
     } catch (err: any) {
       console.error("Scan error:", err);
-      if (err.message?.includes('Rate limit')) {
+      const msg = err?.message || String(err);
+      if (msg.includes('Rate limit') || msg.includes('RATE_LIMIT')) {
         toast.error("Demasiadas solicitudes. Espera un momento e intenta de nuevo.");
-      } else if (err.message?.includes('credits')) {
+      } else if (msg.includes('credits') || msg.includes('CREDITS')) {
         toast.error("Créditos de IA agotados.");
+      } else if (msg.includes('FunctionsFetchError') || msg.includes('Failed to fetch')) {
+        toast.error("Error de conexión. La imagen puede ser demasiado grande. Intenta con una foto más pequeña.");
       } else {
-        toast.error("Error al analizar la imagen. Intenta de nuevo.");
+        toast.error("Error al analizar la imagen: " + msg);
       }
     } finally {
       setScanning(false);
