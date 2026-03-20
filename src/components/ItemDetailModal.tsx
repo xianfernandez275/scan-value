@@ -6,6 +6,7 @@ import {
   ArrowUpRight, ArrowDownRight, Minus, Calendar
 } from "lucide-react";
 import CategoryPlaceholder from "@/components/CategoryPlaceholder";
+import GradeSelector, { type GradeSelection, getGradeLabel, getGradeMultiplier } from "@/components/GradeSelector";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
