@@ -174,10 +174,7 @@ const ResultsPage = () => {
               {img?.imageUrl ? (
                 <img src={img.imageUrl} alt={id.name} className="h-full w-full object-contain p-1 cursor-zoom-in" onClick={() => setLightboxSrc(img.imageUrl)} />
               ) : (
-                <div className="flex h-full flex-col items-center justify-center gap-2 text-muted-foreground p-4 text-center">
-                  <ImageOff size={32} />
-                  <p className="text-xs">Imagen oficial no disponible</p>
-                </div>
+                <CategoryPlaceholder category={id.category} className="h-full w-full" />
               )}
             </div>
           </div>

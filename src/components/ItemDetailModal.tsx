@@ -338,8 +338,9 @@ const ItemDetailModal = ({ item, onClose, onDelete, onUpdateNotes, allItems }: I
                           {other.official_image_url ? (
                             <img src={other.official_image_url} alt={other.name} className="h-full w-full object-contain p-0.5" />
                           ) : (
-                            <div className="flex h-full w-full items-center justify-center text-sm">📦</div>
+                            <CategoryPlaceholder category={other.category} className="h-full w-full" />
                           )}
+                        </div>
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-xs font-semibold truncate">{other.name}</p>
