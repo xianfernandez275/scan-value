@@ -11,6 +11,7 @@ import type { IdentifyResponse, OfficialImage } from "@/lib/api/identifyCollecti
 import { addToCollection } from "@/lib/api/collection";
 import { refineCoinIdentification } from "@/lib/api/identifyCollectible";
 import CoinDetailsForm, { type CoinRefinement } from "@/components/CoinDetailsForm";
+import { getScanData, clearScanData } from "@/lib/scanStore";
 
 const ImageLightbox = ({ src, alt, onClose }: { src: string; alt: string; onClose: () => void }) => (
   <motion.div
