@@ -206,11 +206,13 @@ const ResultsPage = () => {
         >
           <div className="space-y-2">
             <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Tu foto</p>
-            <div className="aspect-[3/4] overflow-hidden rounded-xl border border-border">
+            <div className="aspect-[3/4] overflow-hidden rounded-xl border border-border bg-background">
               {userPhoto ? (
                 <img src={userPhoto} alt="Tu foto" className="h-full w-full object-cover cursor-zoom-in" onClick={() => setLightboxSrc(userPhoto)} />
               ) : (
-                <CategoryPlaceholder category={id.category} className="h-full w-full" />
+                <div className="h-full w-full flex items-center justify-center bg-background">
+                  <CategoryPlaceholder category={id.category} className="h-16 w-16 opacity-30" />
+                </div>
               )}
             </div>
           </div>
