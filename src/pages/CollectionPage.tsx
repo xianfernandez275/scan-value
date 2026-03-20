@@ -136,7 +136,12 @@ const CollectionPage = () => {
                   </div>
                   <div className="text-right shrink-0">
                     <p className="font-bold text-primary text-sm">${(item.estimated_value_usd || 0).toLocaleString()}</p>
-                    <Badge variant="outline" className="text-[9px]">{item.rarity}</Badge>
+                    <div className="flex gap-1">
+                      {(item.grading_company || item.grading_value) && (
+                        <Badge variant="secondary" className="text-[9px]">{getGradeLabel(item.grading_company, item.grading_value)}</Badge>
+                      )}
+                      <Badge variant="outline" className="text-[9px]">{item.rarity}</Badge>
+                    </div>
                   </div>
                 </motion.div>
               ))}
