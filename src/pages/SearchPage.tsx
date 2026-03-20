@@ -637,24 +637,34 @@ export default function SearchPage() {
       {/* Results */}
       <div className="px-4 pt-4">
         {!searchQuery && !isLoading && (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <Sparkles size={48} className="text-primary/30 mb-4" />
-            <h2 className="font-serif text-xl font-semibold">Buscar Coleccionables</h2>
-            <p className="mt-2 max-w-xs text-sm text-muted-foreground">
-              Busca por nombre, serie, año o ID. Usa los filtros para refinar los resultados.
-            </p>
-            <div className="mt-6 flex flex-wrap justify-center gap-2">
-              {["Charizard 1st Edition", "Action Comics #1", "Morgan Dollar 1893", "Black Lotus Alpha"].map((ex) => (
-                <Badge
-                  key={ex}
-                  variant="outline"
-                  className="cursor-pointer hover:bg-secondary"
-                  onClick={() => { setQuery(ex); executeSearch(ex); }}
-                >
-                  {ex}
-                </Badge>
-              ))}
+          <div className="space-y-6">
+            {/* Quick examples */}
+            <div className="flex flex-col items-center justify-center pt-8 pb-4 text-center">
+              <Sparkles size={36} className="text-primary/30 mb-3" />
+              <h2 className="font-serif text-lg font-semibold">Buscar Coleccionables</h2>
+              <p className="mt-1 max-w-xs text-xs text-muted-foreground">
+                Busca por nombre, serie, año o ID.
+              </p>
+              <div className="mt-3 flex flex-wrap justify-center gap-2">
+                {["Charizard 1st Edition", "Action Comics #1", "Morgan Dollar 1893", "Black Lotus Alpha"].map((ex) => (
+                  <Badge
+                    key={ex}
+                    variant="outline"
+                    className="cursor-pointer hover:bg-secondary"
+                    onClick={() => { setQuery(ex); executeSearch(ex); }}
+                  >
+                    {ex}
+                  </Badge>
+                ))}
+              </div>
             </div>
+
+            {/* Recommendations section */}
+            <SearchRecommendations
+              onSelectItem={handleRecSelectItem}
+              onSearchQuery={handleRecSearchQuery}
+              refreshKey={recRefreshKey}
+            />
           </div>
         )}
 
