@@ -147,7 +147,7 @@ function RankingCard({ item, rank }: { item: MarketItem; rank: number }) {
 
         {/* Image placeholder */}
         <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg">
-          <CategoryPlaceholder category={item.category} size="sm" />
+          <CategoryPlaceholder category={item.category} />
         </div>
 
         {/* Info */}
