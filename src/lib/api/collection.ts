@@ -64,6 +64,8 @@ export async function addToCollection(
       official_card_id: officialImage?.cardId || null,
       official_set_name: officialImage?.setName || null,
       official_card_number: officialImage?.number || null,
+      grading_company: gradingCompany,
+      grading_value: gradingValue,
     })
     .select()
     .single();
