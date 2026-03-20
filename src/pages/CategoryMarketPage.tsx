@@ -1,7 +1,9 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, TrendingUp, TrendingDown, Crown, Flame, ChevronDown, Filter, X } from "lucide-react";
-import { useState, useMemo } from "react";
+import { ArrowLeft, TrendingUp, TrendingDown, Crown, Flame, ChevronDown, Filter, X, RefreshCw, Loader2, Wifi, WifiOff } from "lucide-react";
+import { useState, useMemo, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { categories } from "@/lib/mockData";
 import {
   MarketItem,
@@ -11,6 +13,7 @@ import {
   getFalling,
   formatPrice,
 } from "@/lib/marketData";
+import { fetchMarketPrices } from "@/lib/api/marketPrices";
 import CategoryPlaceholder from "@/components/CategoryPlaceholder";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -189,7 +192,20 @@ export default function CategoryMarketPage() {
   const [priceRange, setPriceRange] = useState(0);
   const [conditionFilter, setConditionFilter] = useState<string>("all");
 
-  const allItems = marketDataByCategory[categoryId || ""] || [];
+  // Fetch live data with fallback to mock
+  const { data: liveData, isLoading, isError, refetch, isFetching } = useQuery({
+    queryKey: ["market-prices", categoryId],
+    queryFn: () => fetchMarketPrices(categoryId || "", category?.label || ""),
+    enabled: !!categoryId && !!category,
+    staleTime: 5 * 60 * 1000, // 5 min cache
+    retry: 1,
+  });
+
+  const isLive = !!liveData && !isError;
+  const allItems: MarketItem[] = isLive
+    ? liveData.items
+    : marketDataByCategory[categoryId || ""] || [];
+
   const conditions = useMemo(() => {
     const set = new Set(allItems.map((i) => i.condition));
     return Array.from(set);
@@ -204,9 +220,10 @@ export default function CategoryMarketPage() {
     });
   };
 
-  const topValuable = filterItems(getTopValuable(categoryId || ""));
-  const rising = filterItems(getRising(categoryId || ""));
-  const falling = filterItems(getFalling(categoryId || ""));
+  const sorted = [...allItems];
+  const topValuable = filterItems(sorted.sort((a, b) => b.currentPrice - a.currentPrice));
+  const rising = filterItems([...allItems].filter(i => i.change > 0).sort((a, b) => b.change - a.change));
+  const falling = filterItems([...allItems].filter(i => i.change < 0).sort((a, b) => a.change - b.change));
 
   if (!category) {
     return (
@@ -226,13 +243,33 @@ export default function CategoryMarketPage() {
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
             <ArrowLeft size={20} />
           </Button>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-1 items-center gap-2">
             <span className="text-2xl">{category.icon}</span>
             <div>
               <h1 className="font-serif text-lg font-bold">{category.label}</h1>
-              <p className="text-xs text-muted-foreground">Análisis de mercado</p>
+              <div className="flex items-center gap-2">
+                <p className="text-xs text-muted-foreground">Análisis de mercado</p>
+                {isLive ? (
+                  <span className="flex items-center gap-1 text-[10px] font-medium text-green-400">
+                    <Wifi size={10} /> En vivo
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1 text-[10px] font-medium text-muted-foreground">
+                    <WifiOff size={10} /> Datos estimados
+                  </span>
+                )}
+              </div>
             </div>
           </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => refetch()}
+            disabled={isFetching}
+            className="shrink-0"
+          >
+            {isFetching ? <Loader2 size={18} className="animate-spin" /> : <RefreshCw size={18} />}
+          </Button>
         </div>
 
         {/* Filters */}
@@ -273,6 +310,25 @@ export default function CategoryMarketPage() {
         </div>
       </div>
 
+      {isLoading && !liveData ? (
+        <div className="space-y-4 px-4 pt-6">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <div key={i} className="glass flex items-center gap-3 rounded-xl p-3 animate-pulse">
+              <div className="h-8 w-8 rounded-lg bg-muted" />
+              <div className="h-12 w-12 rounded-lg bg-muted" />
+              <div className="flex-1 space-y-2">
+                <div className="h-4 w-3/4 rounded bg-muted" />
+                <div className="h-3 w-1/2 rounded bg-muted" />
+              </div>
+              <div className="h-12 w-24 rounded bg-muted" />
+            </div>
+          ))}
+          <p className="text-center text-sm text-muted-foreground pt-4">
+            <Loader2 size={16} className="inline animate-spin mr-2" />
+            Consultando precios de mercado con IA...
+          </p>
+        </div>
+      ) : (
       <div className="space-y-8 px-4 pt-6">
         {/* Top Valuable */}
         <section>
@@ -334,6 +390,7 @@ export default function CategoryMarketPage() {
           </div>
         </section>
       </div>
+      )}
     </div>
   );
 }
