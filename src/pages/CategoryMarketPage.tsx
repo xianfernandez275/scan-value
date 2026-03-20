@@ -68,7 +68,7 @@ function ItemDetailSheet({ item, children }: { item: MarketItem; children: React
         <div className="mt-4 space-y-6 overflow-y-auto pb-8">
           {/* Image */}
           <div className="mx-auto h-48 w-48 overflow-hidden rounded-2xl">
-            <CategoryPlaceholder category={item.category} size="lg" />
+            <CategoryPlaceholder category={item.category} />
           </div>
 
           {/* Info grid */}
