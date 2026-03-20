@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { identifyCollectible, type IdentifyResponse } from "@/lib/api/identifyCollectible";
+import { setScanData } from "@/lib/scanStore";
 
 const ScanPage = () => {
   const [image, setImage] = useState<string | null>(null);
