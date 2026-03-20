@@ -675,7 +675,51 @@ Deno.serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY is not configured');
 
-    const { imageBase64 } = await req.json();
+    const body = await req.json();
+    const { imageBase64, coinRefinement, identification: existingId } = body;
+
+    // ─── Mode 2: Coin refinement (no image needed) ─────────────────────
+    if (coinRefinement && existingId) {
+      console.log(`[main] Coin refinement: country=${coinRefinement.country}, year=${coinRefinement.year}, denomination=${coinRefinement.denomination}`);
+
+      // Update identification with user-provided data
+      const refined: Identification = { ...existingId };
+      if (coinRefinement.year) refined.year = parseInt(coinRefinement.year);
+      if (coinRefinement.denomination) refined.name = `${coinRefinement.denomination} ${coinRefinement.country || ''}`.trim();
+
+      // Set refinement context for the provider
+      currentCoinRefinement = coinRefinement;
+      const { exactMatch, candidates } = await fetchOfficialData(refined);
+      currentCoinRefinement = undefined;
+
+      // For coins: always show candidates if no exact match (needsConfirmation = true)
+      const needsConfirmation = !exactMatch && candidates.length > 0;
+
+      const officialImage = exactMatch ? {
+        imageUrl: exactMatch.imageUrl, source: exactMatch.source,
+        attribution: exactMatch.attribution, sourceUrl: exactMatch.sourceUrl,
+        cardId: exactMatch.externalId, setName: exactMatch.setName,
+        number: exactMatch.number, name: exactMatch.name,
+      } : null;
+
+      const candidatesLegacy = candidates.map(c => ({
+        imageUrl: c.imageUrl, source: c.source, attribution: c.attribution,
+        sourceUrl: c.sourceUrl, cardId: c.externalId, setName: c.setName,
+        number: c.number, name: c.name,
+      }));
+
+      return new Response(JSON.stringify({
+        success: true,
+        identification: refined,
+        officialImage,
+        candidates: candidatesLegacy,
+        needsConfirmation,
+        provider: exactMatch?.source || candidates[0]?.source || null,
+        marketData: exactMatch?.marketData || null,
+      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    // ─── Mode 1: Image identification ──────────────────────────────────
     if (!imageBase64) {
       return new Response(JSON.stringify({ error: 'imageBase64 is required' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
