@@ -47,6 +47,16 @@ const CollectionPage = () => {
     }
   };
 
+  const handleUpdateGrade = async (id: string, company: string | null, value: string | null) => {
+    try {
+      await updateItemGrade(id, company, value);
+      setCollection((prev) => prev.map((item) => item.id === id ? { ...item, grading_company: company, grading_value: value } : item));
+      toast.success("Gradeo actualizado");
+    } catch {
+      toast.error("Error al actualizar gradeo");
+    }
+  };
+
   const totalValue = collection.reduce((sum, item) => sum + (item.estimated_value_usd || 0), 0);
 
   return (
