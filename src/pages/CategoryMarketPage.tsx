@@ -390,6 +390,7 @@ export default function CategoryMarketPage() {
           </div>
         </section>
       </div>
+      )}
     </div>
   );
 }
