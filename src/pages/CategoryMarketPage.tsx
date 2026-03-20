@@ -1,7 +1,9 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, TrendingUp, TrendingDown, Crown, Flame, ChevronDown, Filter, X } from "lucide-react";
-import { useState, useMemo } from "react";
+import { ArrowLeft, TrendingUp, TrendingDown, Crown, Flame, ChevronDown, Filter, X, RefreshCw, Loader2, Wifi, WifiOff } from "lucide-react";
+import { useState, useMemo, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { categories } from "@/lib/mockData";
 import {
   MarketItem,
