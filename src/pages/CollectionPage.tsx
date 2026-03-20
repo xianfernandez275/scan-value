@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { getCollection, removeFromCollection, updateItemNotes, type CollectionItem } from "@/lib/api/collection";
 import ItemDetailModal from "@/components/ItemDetailModal";
-
+import CategoryPlaceholder from "@/components/CategoryPlaceholder";
 const CollectionPage = () => {
   const [collection, setCollection] = useState<CollectionItem[]>([]);
   const [loading, setLoading] = useState(true);
