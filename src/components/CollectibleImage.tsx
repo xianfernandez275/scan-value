@@ -15,6 +15,9 @@ interface CollectibleImageProps {
   category: string;
   userImage?: string;
   officialImageUrl?: string;
+  /** Source API name for fallback placeholder (e.g. "PokéAPI", "Comic Vine") */
+  source?: string;
+  sourceUrl?: string;
   className?: string;
   size?: "sm" | "md" | "lg";
 }
@@ -37,8 +40,8 @@ async function fetchPokemonTCGImage(name: string): Promise<ImageResult | null> {
     if (!card?.images) return null;
     return {
       imageUrl: card.images.large || card.images.small,
-      source: 'Pokémon TCG API',
-      attribution: '© Nintendo/Creatures Inc./GAME FREAK inc. via pokemontcg.io',
+      source: "Pokémon TCG API",
+      attribution: "© Nintendo/Creatures Inc./GAME FREAK inc. via pokemontcg.io",
       sourceUrl: `https://pokemontcg.io/card/${card.id}`,
     };
   } catch {
@@ -51,6 +54,8 @@ const CollectibleImage = ({
   category,
   userImage,
   officialImageUrl,
+  source,
+  sourceUrl,
   className = "",
   size = "md",
 }: CollectibleImageProps) => {
@@ -67,7 +72,7 @@ const CollectibleImage = ({
 
     const cat = category.toLowerCase();
 
-    if (cat.includes('carta') || cat.includes('card')) {
+    if (cat.includes("carta") || cat.includes("card")) {
       fetchPokemonTCGImage(name).then((result) => {
         if (cancelled) return;
         setImageData(result);
@@ -82,14 +87,23 @@ const CollectibleImage = ({
 
   const displayImage = officialImageUrl || userImage || imageData?.imageUrl;
   const attribution = imageData?.attribution;
+  const resolvedSource = source || imageData?.source;
+  const resolvedSourceUrl = sourceUrl || imageData?.sourceUrl;
 
   if (loading) {
     return <Skeleton className={`${sizeClasses[size]} rounded-lg ${className}`} />;
   }
 
-  // If no image available or image failed to load, show attractive placeholder
   if (!displayImage || error) {
-    return <CategoryPlaceholder category={category} className={`${sizeClasses[size]} ${className}`} />;
+    return (
+      <CategoryPlaceholder
+        category={category}
+        className={`${sizeClasses[size]} ${className}`}
+        source={resolvedSource}
+        sourceUrl={resolvedSourceUrl}
+        itemName={name}
+      />
+    );
   }
 
   return (
