@@ -207,6 +207,7 @@ export default function SearchPage() {
   const [selectedIdx, setSelectedIdx] = useState(-1);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [filters, setFilters] = useState<SearchFilters>({});
+  const [recRefreshKey, setRecRefreshKey] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
   const suggestionsRef = useRef<HTMLDivElement>(null);
