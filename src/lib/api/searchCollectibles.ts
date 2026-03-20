@@ -27,6 +27,10 @@ export interface AutocompleteSuggestion {
   name: string;
   category: string;
   id: string;
+  series?: string;
+  price?: number;
+  year?: number;
+  rarity?: string;
 }
 
 export async function searchCollectibles(
