@@ -247,6 +247,9 @@ const ResultsPage = () => {
             </div>
           )}
 
+          {/* Grade selector */}
+          <GradeSelector value={grade} onChange={setGrade} />
+
           <div className="flex gap-2 pt-2">
             <Button
               size="sm"
@@ -255,7 +258,7 @@ const ResultsPage = () => {
               onClick={async () => {
                 setSaving(true);
                 try {
-                  await addToCollection(id, selectedImage, userPhoto);
+                  await addToCollection(id, selectedImage, userPhoto, grade.company, grade.value);
                   setSaved(true);
                   toast.success("Artículo añadido a tu colección");
                 } catch (err: any) {
