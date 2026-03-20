@@ -188,6 +188,17 @@ const ResultsPage = () => {
           </motion.div>
         )}
 
+        {/* Coin refinement form - shown after scan for coins */}
+        {isCoin && (
+          <CoinDetailsForm
+            initialName={id.name}
+            initialYear={id.year}
+            onRefine={handleCoinRefine}
+            onManualSearch={handleCoinManualSearch}
+            loading={refiningCoin}
+          />
+        )}
+
         {/* Image comparison */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
