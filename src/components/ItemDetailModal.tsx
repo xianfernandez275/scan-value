@@ -187,6 +187,23 @@ const ItemDetailModal = ({ item, onClose, onDelete, onUpdateNotes, onUpdateGrade
             </div>
           )}
 
+          {/* Grade selector */}
+          <GradeSelector
+            value={grade}
+            onChange={async (newGrade) => {
+              setGrade(newGrade);
+              if (onUpdateGrade) {
+                setSavingGrade(true);
+                try {
+                  await onUpdateGrade(item.id, newGrade.company, newGrade.value);
+                } finally {
+                  setSavingGrade(false);
+                }
+              }
+            }}
+            compact
+          />
+
           {/* Tabs: Market / Notes / Compare */}
           <Tabs defaultValue="market" className="w-full">
             <TabsList className="w-full">
