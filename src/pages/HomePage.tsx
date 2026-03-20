@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { Camera, Search, Sparkles, TrendingUp, Shield, Zap } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import heroImage from "@/assets/hero-collectibles.jpg";
 import { categories } from "@/lib/mockData";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ const features = [
 ];
 
 const HomePage = () => {
+  const navigate = useNavigate();
   return (
     <div className="min-h-screen pb-24">
       {/* Hero */}
@@ -55,6 +56,7 @@ const HomePage = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.08 }}
+              onClick={() => navigate(`/market/${cat.id}`)}
               className="glass flex flex-col items-center gap-2 rounded-xl p-4 text-center transition-all hover:border-primary/50 hover:shadow-gold cursor-pointer"
             >
               <span className="text-3xl">{cat.icon}</span>
