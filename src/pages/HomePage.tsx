@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { Camera, Search, Sparkles, TrendingUp, Shield, Zap } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import heroImage from "@/assets/hero-collectibles.jpg";
 import { categories } from "@/lib/mockData";
 import { Button } from "@/components/ui/button";
