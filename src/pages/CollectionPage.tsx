@@ -3,9 +3,10 @@ import { motion, AnimatePresence } from "framer-motion";
 import { BookOpen, TrendingUp, DollarSign, Package } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { getCollection, removeFromCollection, updateItemNotes, type CollectionItem } from "@/lib/api/collection";
+import { getCollection, removeFromCollection, updateItemNotes, updateItemGrade, type CollectionItem } from "@/lib/api/collection";
 import ItemDetailModal from "@/components/ItemDetailModal";
 import CategoryPlaceholder from "@/components/CategoryPlaceholder";
+import { getGradeLabel } from "@/components/GradeSelector";
 const CollectionPage = () => {
   const [collection, setCollection] = useState<CollectionItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -43,6 +44,16 @@ const CollectionPage = () => {
       toast.success("Notas guardadas");
     } catch {
       toast.error("Error al guardar notas");
+    }
+  };
+
+  const handleUpdateGrade = async (id: string, company: string | null, value: string | null) => {
+    try {
+      await updateItemGrade(id, company, value);
+      setCollection((prev) => prev.map((item) => item.id === id ? { ...item, grading_company: company, grading_value: value } : item));
+      toast.success("Gradeo actualizado");
+    } catch {
+      toast.error("Error al actualizar gradeo");
     }
   };
 
@@ -125,7 +136,12 @@ const CollectionPage = () => {
                   </div>
                   <div className="text-right shrink-0">
                     <p className="font-bold text-primary text-sm">${(item.estimated_value_usd || 0).toLocaleString()}</p>
-                    <Badge variant="outline" className="text-[9px]">{item.rarity}</Badge>
+                    <div className="flex gap-1">
+                      {(item.grading_company || item.grading_value) && (
+                        <Badge variant="secondary" className="text-[9px]">{getGradeLabel(item.grading_company, item.grading_value)}</Badge>
+                      )}
+                      <Badge variant="outline" className="text-[9px]">{item.rarity}</Badge>
+                    </div>
                   </div>
                 </motion.div>
               ))}
@@ -151,6 +167,7 @@ const CollectionPage = () => {
             onClose={() => setSelectedItem(null)}
             onDelete={handleRemove}
             onUpdateNotes={handleUpdateNotes}
+            onUpdateGrade={handleUpdateGrade}
           />
         )}
       </AnimatePresence>

@@ -24,6 +24,8 @@ export type Database = {
           created_at: string
           description: string | null
           estimated_value_usd: number | null
+          grading_company: string | null
+          grading_value: string | null
           id: string
           name: string
           notes: string | null
@@ -51,6 +53,8 @@ export type Database = {
           created_at?: string
           description?: string | null
           estimated_value_usd?: number | null
+          grading_company?: string | null
+          grading_value?: string | null
           id?: string
           name: string
           notes?: string | null
@@ -78,6 +82,8 @@ export type Database = {
           created_at?: string
           description?: string | null
           estimated_value_usd?: number | null
+          grading_company?: string | null
+          grading_value?: string | null
           id?: string
           name?: string
           notes?: string | null

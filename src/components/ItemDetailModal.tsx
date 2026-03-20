@@ -6,6 +6,7 @@ import {
   ArrowUpRight, ArrowDownRight, Minus, Calendar
 } from "lucide-react";
 import CategoryPlaceholder from "@/components/CategoryPlaceholder";
+import GradeSelector, { type GradeSelection, getGradeLabel, getGradeMultiplier } from "@/components/GradeSelector";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
@@ -17,6 +18,7 @@ interface ItemDetailModalProps {
   onClose: () => void;
   onDelete: (id: string) => void;
   onUpdateNotes: (id: string, notes: string) => Promise<void>;
+  onUpdateGrade?: (id: string, company: string | null, value: string | null) => Promise<void>;
   allItems: CollectionItem[];
 }
 
@@ -63,12 +65,19 @@ function getDemandLevel(value: number): string {
   return 'Baja';
 }
 
-const ItemDetailModal = ({ item, onClose, onDelete, onUpdateNotes, allItems }: ItemDetailModalProps) => {
+const ItemDetailModal = ({ item, onClose, onDelete, onUpdateNotes, onUpdateGrade, allItems }: ItemDetailModalProps) => {
   const [notes, setNotes] = useState(item.notes || '');
   const [savingNotes, setSavingNotes] = useState(false);
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
+  const [grade, setGrade] = useState<GradeSelection>({
+    company: item.grading_company || null,
+    value: item.grading_value || null,
+  });
+  const [savingGrade, setSavingGrade] = useState(false);
 
-  const currentValue = item.estimated_value_usd || 0;
+  const gradeMultiplier = getGradeMultiplier(grade.company, grade.value);
+  const baseValue = item.estimated_value_usd || 0;
+  const currentValue = Math.round(baseValue * (gradeMultiplier / 0.5)); // normalize: raw=1x, PSA10=2x
   const historicalPrices = generateHistoricalPrices(currentValue, item.year);
   const prediction = generatePrediction(currentValue);
   const demand = getDemandLevel(currentValue);
@@ -177,6 +186,23 @@ const ItemDetailModal = ({ item, onClose, onDelete, onUpdateNotes, allItems }: I
               ))}
             </div>
           )}
+
+          {/* Grade selector */}
+          <GradeSelector
+            value={grade}
+            onChange={async (newGrade) => {
+              setGrade(newGrade);
+              if (onUpdateGrade) {
+                setSavingGrade(true);
+                try {
+                  await onUpdateGrade(item.id, newGrade.company, newGrade.value);
+                } finally {
+                  setSavingGrade(false);
+                }
+              }
+            }}
+            compact
+          />
 
           {/* Tabs: Market / Notes / Compare */}
           <Tabs defaultValue="market" className="w-full">

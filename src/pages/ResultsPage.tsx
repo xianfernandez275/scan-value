@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, Plus, TrendingUp, ExternalLink, ShieldCheck, X, CheckCircle2, AlertTriangle, Loader2 } from "lucide-react";
 import CategoryPlaceholder from "@/components/CategoryPlaceholder";
+import GradeSelector, { type GradeSelection, getGradeLabel } from "@/components/GradeSelector";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -48,6 +49,7 @@ const ResultsPage = () => {
   const [showCandidates, setShowCandidates] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [grade, setGrade] = useState<GradeSelection>({ company: null, value: null });
 
   useEffect(() => {
     const stored = sessionStorage.getItem('scanResult');
@@ -245,6 +247,9 @@ const ResultsPage = () => {
             </div>
           )}
 
+          {/* Grade selector */}
+          <GradeSelector value={grade} onChange={setGrade} />
+
           <div className="flex gap-2 pt-2">
             <Button
               size="sm"
@@ -253,7 +258,7 @@ const ResultsPage = () => {
               onClick={async () => {
                 setSaving(true);
                 try {
-                  await addToCollection(id, selectedImage, userPhoto);
+                  await addToCollection(id, selectedImage, userPhoto, grade.company, grade.value);
                   setSaved(true);
                   toast.success("Artículo añadido a tu colección");
                 } catch (err: any) {
