@@ -83,7 +83,7 @@ Reglas:
 - rarity: "Común", "Poco Común", "Raro", "Muy Raro", o "Ultra Raro"
 - demand: "Baja", "Media", "Alta", o "Muy Alta"
 - change puede ser positivo o negativo (refleja tendencia real)
-- Incluye al menos 3 artículos subiendo y 2 bajando de precio
+- Incluye al menos 10 artículos subiendo y 5 bajando de precio
 - historicalPrices debe tener 5 puntos de datos
 - Precios en USD
 - Los artículos deben ser reales y reconocidos en el mercado de coleccionables`;
