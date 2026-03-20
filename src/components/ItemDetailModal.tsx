@@ -18,6 +18,7 @@ interface ItemDetailModalProps {
   onClose: () => void;
   onDelete: (id: string) => void;
   onUpdateNotes: (id: string, notes: string) => Promise<void>;
+  onUpdateGrade?: (id: string, company: string | null, value: string | null) => Promise<void>;
   allItems: CollectionItem[];
 }
 
