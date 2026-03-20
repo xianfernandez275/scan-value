@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  X, ImageOff, ShieldCheck, ExternalLink, TrendingUp, TrendingDown,
+  X, ShieldCheck, ExternalLink, TrendingUp, TrendingDown,
   DollarSign, BarChart3, Users, StickyNote, Save, Loader2, Trash2,
   ArrowUpRight, ArrowDownRight, Minus, Calendar
 } from "lucide-react";
+import CategoryPlaceholder from "@/components/CategoryPlaceholder";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
