@@ -3,9 +3,10 @@ import { motion, AnimatePresence } from "framer-motion";
 import { BookOpen, TrendingUp, DollarSign, Package } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { getCollection, removeFromCollection, updateItemNotes, type CollectionItem } from "@/lib/api/collection";
+import { getCollection, removeFromCollection, updateItemNotes, updateItemGrade, type CollectionItem } from "@/lib/api/collection";
 import ItemDetailModal from "@/components/ItemDetailModal";
 import CategoryPlaceholder from "@/components/CategoryPlaceholder";
+import { getGradeLabel } from "@/components/GradeSelector";
 const CollectionPage = () => {
   const [collection, setCollection] = useState<CollectionItem[]>([]);
   const [loading, setLoading] = useState(true);
