@@ -343,6 +343,59 @@ const comicVineProvider: CollectibleProvider = {
 
 // ─── Provider: Coins (Numista) ──────────────────────────────────────────────
 
+interface CoinRefinement {
+  country?: string;
+  year?: string;
+  face?: string;
+  denomination?: string;
+  originalName?: string;
+}
+
+// Country name → Numista issuer query mapping
+const COUNTRY_TO_ISSUER: Record<string, string> = {
+  'España': 'Spain', 'Alemania': 'Germany', 'Francia': 'France', 'Italia': 'Italy',
+  'Portugal': 'Portugal', 'Grecia': 'Greece', 'Austria': 'Austria', 'Bélgica': 'Belgium',
+  'Países Bajos': 'Netherlands', 'Finlandia': 'Finland', 'Irlanda': 'Ireland',
+  'Luxemburgo': 'Luxembourg', 'Eslovenia': 'Slovenia', 'Chipre': 'Cyprus',
+  'Malta': 'Malta', 'Eslovaquia': 'Slovakia', 'Estonia': 'Estonia',
+  'Letonia': 'Latvia', 'Lituania': 'Lithuania', 'Mónaco': 'Monaco',
+  'San Marino': 'San Marino', 'Vaticano': 'Vatican City',
+  'Estados Unidos': 'United States', 'Reino Unido': 'United Kingdom',
+  'Canadá': 'Canada', 'Australia': 'Australia', 'México': 'Mexico',
+  'Japón': 'Japan', 'China': 'China', 'Suiza': 'Switzerland',
+  'Brasil': 'Brazil', 'Argentina': 'Argentina', 'Colombia': 'Colombia',
+  'India': 'India', 'Sudáfrica': 'South Africa', 'Rusia': 'Russia', 'Turquía': 'Turkey',
+};
+
+function buildCoinQuery(id: Identification, refinement?: CoinRefinement): string {
+  const parts: string[] = [];
+
+  // Use denomination if provided, otherwise fall back to AI-detected name
+  if (refinement?.denomination) {
+    parts.push(refinement.denomination);
+  } else if (id.name) {
+    parts.push(id.name);
+  }
+
+  // Add country
+  if (refinement?.country) {
+    const eng = COUNTRY_TO_ISSUER[refinement.country] || refinement.country;
+    parts.push(eng);
+  }
+
+  // Add year
+  if (refinement?.year) {
+    parts.push(refinement.year);
+  } else if (id.year) {
+    parts.push(String(id.year));
+  }
+
+  return parts.join(' ');
+}
+
+// Store refinement globally for use by the provider
+let currentCoinRefinement: CoinRefinement | undefined;
+
 const numistaProvider: CollectibleProvider = {
   name: 'numista',
   categories: ['Monedas'],
@@ -354,28 +407,51 @@ const numistaProvider: CollectibleProvider = {
     }
 
     try {
+      const query = buildCoinQuery(id, currentCoinRefinement);
+      console.log('[numista] searching:', query);
+
       const res = await fetch(
-        `https://api.numista.com/api/v3/coins?q=${encodeURIComponent(id.name)}&count=5`,
+        `https://api.numista.com/api/v3/coins?q=${encodeURIComponent(query)}&count=10`,
         { headers: { 'Numista-API-Key': apiKey, 'Accept': 'application/json' } }
       );
       if (!res.ok) return { exactMatch: null, candidates: [] };
       const data = await res.json();
       const coins = data.coins || [];
 
+      const faceField = currentCoinRefinement?.face === 'reverse' ? 'reverse' : 'obverse';
+
       const normalized = coins.map((coin: any): NormalizedItem => ({
-        imageUrl: coin.obverse?.picture || coin.reverse?.picture || '',
+        imageUrl: coin[faceField]?.picture || coin.obverse?.picture || coin.reverse?.picture || '',
         source: 'Numista',
         attribution: 'Data provided by Numista (en.numista.com). Images are © their respective owners.',
         sourceUrl: `https://en.numista.com/catalogue/pieces${coin.id}.html`,
         externalId: String(coin.id),
         setName: coin.issuer?.name || '',
-        number: '',
+        number: coin.min_year && coin.max_year ? `${coin.min_year}-${coin.max_year}` : '',
         name: coin.title || '',
       }));
 
+      // If we have refinement data, try to find exact match by year
+      if (currentCoinRefinement?.year && normalized.length > 0) {
+        const yearNum = parseInt(currentCoinRefinement.year);
+        const yearMatch = coins.findIndex((c: any) => {
+          const minY = c.min_year || 0;
+          const maxY = c.max_year || 9999;
+          return yearNum >= minY && yearNum <= maxY;
+        });
+        if (yearMatch >= 0 && normalized.length > 1) {
+          return { exactMatch: normalized[yearMatch], candidates: normalized };
+        }
+      }
+
+      // With refinement and single result = exact match
+      if (currentCoinRefinement && normalized.length === 1) {
+        return { exactMatch: normalized[0], candidates: [] };
+      }
+
       return {
-        exactMatch: normalized.length === 1 ? normalized[0] : null,
-        candidates: normalized.length > 1 ? normalized : [],
+        exactMatch: null,
+        candidates: normalized,
       };
     } catch (e) {
       console.error('[numista] error:', e);
