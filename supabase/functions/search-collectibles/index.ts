@@ -53,14 +53,21 @@ serve(async (req) => {
           messages: [
             {
               role: "system",
-              content: `Eres un experto en coleccionables. Devuelve sugerencias de autocompletado en JSON.
-Responde SOLO con JSON válido, sin markdown.
-Formato: {"suggestions": [{"name": "...", "category": "...", "id": "..."}]}
-Máximo 6 sugerencias. Las categorías son: Cómics, Cartas, Monedas, Juguetes, Sellos, Vinilos.`,
+              content: `Eres un buscador experto de coleccionables. Devuelve sugerencias de autocompletado en JSON.
+Responde SOLO con JSON válido, sin markdown ni texto adicional.
+Formato:
+{"suggestions": [{"name": "Nombre completo", "category": "Cómics", "series": "Serie/colección", "price": 15000, "year": 1999, "rarity": "Ultra Raro", "id": "unique-id"}]}
+Máximo 8 sugerencias. Categorías: Cómics, Cartas, Monedas, Juguetes, Sellos, Vinilos.
+Reglas:
+- Sé tolerante a errores tipográficos (ej: "charizrd" → "Charizard")
+- Ordena por: coincidencia exacta primero, luego popularidad/demanda
+- Incluye artículos reales y reconocidos del mercado de coleccionables
+- Precios en USD realistas
+- rarity: Común, Poco Común, Raro, Muy Raro, Ultra Raro`,
             },
             {
               role: "user",
-              content: `Sugerencias de autocompletado para: "${query}"${filterStr}`,
+              content: `Autocompletado para: "${query}"${filterStr}`,
             },
           ],
         }),

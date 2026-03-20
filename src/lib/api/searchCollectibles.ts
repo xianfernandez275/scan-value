@@ -73,7 +73,7 @@ export async function searchCollectibles(
 export async function getAutocompleteSuggestions(
   query: string
 ): Promise<AutocompleteSuggestion[]> {
-  if (!query || query.length < 2) return [];
+  if (!query || query.length < 1) return [];
 
   const { data, error } = await supabase.functions.invoke("search-collectibles", {
     body: { query, mode: "autocomplete" },
