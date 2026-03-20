@@ -49,6 +49,7 @@ const ResultsPage = () => {
   const [showCandidates, setShowCandidates] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [grade, setGrade] = useState<GradeSelection>({ company: null, value: null });
 
   useEffect(() => {
     const stored = sessionStorage.getItem('scanResult');
