@@ -47,7 +47,7 @@ Los porcentajes de cambio deben reflejar tendencias reales del mercado de los ú
 
     const userPrompt = `Dame datos de mercado actualizados para la categoría: ${categoryLabel} (${examples}).
 
-Necesito exactamente este formato JSON con 8-10 artículos reales de esta categoría:
+Necesito exactamente este formato JSON con 20 artículos reales de esta categoría:
 {
   "items": [
     {
@@ -83,7 +83,7 @@ Reglas:
 - rarity: "Común", "Poco Común", "Raro", "Muy Raro", o "Ultra Raro"
 - demand: "Baja", "Media", "Alta", o "Muy Alta"
 - change puede ser positivo o negativo (refleja tendencia real)
-- Incluye al menos 3 artículos subiendo y 2 bajando de precio
+- Incluye al menos 10 artículos subiendo y 5 bajando de precio
 - historicalPrices debe tener 5 puntos de datos
 - Precios en USD
 - Los artículos deben ser reales y reconocidos en el mercado de coleccionables`;
