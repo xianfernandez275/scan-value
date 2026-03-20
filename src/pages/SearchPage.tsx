@@ -151,12 +151,24 @@ function ItemDetailSheet({ item, children }: { item: SearchResult; children: Rea
 
 function ResultCard({ item, index }: { item: SearchResult; index: number }) {
   const isUp = item.change >= 0;
+  const handleClick = () => {
+    addViewedItem({
+      id: item.id,
+      name: item.name,
+      category: item.category,
+      price: item.currentPrice,
+      rarity: item.rarity,
+      year: item.year,
+      series: item.series,
+    });
+  };
   return (
     <ItemDetailSheet item={item}>
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: index * 0.04 }}
+        onClick={handleClick}
         className="glass flex cursor-pointer items-center gap-3 rounded-xl p-3 transition-all hover:border-primary/40 hover:shadow-gold active:scale-[0.98]"
       >
         <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg">
