@@ -262,7 +262,10 @@ export default function SearchPage() {
     setSearchQuery(searchVal);
     setShowSuggestions(false);
     setSelectedIdx(-1);
-  }, [query]);
+    // Track search history
+    addSearchEntry(searchVal, filters.category);
+    setRecRefreshKey((k) => k + 1);
+  }, [query, filters.category]);
 
   const selectSuggestion = (s: AutocompleteSuggestion) => {
     setQuery(s.name);
