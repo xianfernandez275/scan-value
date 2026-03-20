@@ -65,12 +65,19 @@ function getDemandLevel(value: number): string {
   return 'Baja';
 }
 
-const ItemDetailModal = ({ item, onClose, onDelete, onUpdateNotes, allItems }: ItemDetailModalProps) => {
+const ItemDetailModal = ({ item, onClose, onDelete, onUpdateNotes, onUpdateGrade, allItems }: ItemDetailModalProps) => {
   const [notes, setNotes] = useState(item.notes || '');
   const [savingNotes, setSavingNotes] = useState(false);
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
+  const [grade, setGrade] = useState<GradeSelection>({
+    company: item.grading_company || null,
+    value: item.grading_value || null,
+  });
+  const [savingGrade, setSavingGrade] = useState(false);
 
-  const currentValue = item.estimated_value_usd || 0;
+  const gradeMultiplier = getGradeMultiplier(grade.company, grade.value);
+  const baseValue = item.estimated_value_usd || 0;
+  const currentValue = Math.round(baseValue * (gradeMultiplier / 0.5)); // normalize: raw=1x, PSA10=2x
   const historicalPrices = generateHistoricalPrices(currentValue, item.year);
   const prediction = generatePrediction(currentValue);
   const demand = getDemandLevel(currentValue);
