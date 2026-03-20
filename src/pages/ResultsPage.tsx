@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Plus, TrendingUp, ExternalLink, ShieldCheck, ImageOff, X, CheckCircle2, AlertTriangle, Loader2 } from "lucide-react";
+import { ArrowLeft, Plus, TrendingUp, ExternalLink, ShieldCheck, X, CheckCircle2, AlertTriangle, Loader2 } from "lucide-react";
+import CategoryPlaceholder from "@/components/CategoryPlaceholder";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -155,9 +156,7 @@ const ResultsPage = () => {
               {userPhoto ? (
                 <img src={userPhoto} alt="Tu foto" className="h-full w-full object-cover cursor-zoom-in" onClick={() => setLightboxSrc(userPhoto)} />
               ) : (
-                <div className="flex h-full items-center justify-center bg-secondary">
-                  <ImageOff className="text-muted-foreground" />
-                </div>
+                <CategoryPlaceholder category={id.category} className="h-full w-full" />
               )}
             </div>
           </div>
@@ -175,10 +174,7 @@ const ResultsPage = () => {
               {img?.imageUrl ? (
                 <img src={img.imageUrl} alt={id.name} className="h-full w-full object-contain p-1 cursor-zoom-in" onClick={() => setLightboxSrc(img.imageUrl)} />
               ) : (
-                <div className="flex h-full flex-col items-center justify-center gap-2 text-muted-foreground p-4 text-center">
-                  <ImageOff size={32} />
-                  <p className="text-xs">Imagen oficial no disponible</p>
-                </div>
+                <CategoryPlaceholder category={id.category} className="h-full w-full" />
               )}
             </div>
           </div>

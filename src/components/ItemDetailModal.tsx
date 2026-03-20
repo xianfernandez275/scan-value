@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  X, ImageOff, ShieldCheck, ExternalLink, TrendingUp, TrendingDown,
+  X, ShieldCheck, ExternalLink, TrendingUp, TrendingDown,
   DollarSign, BarChart3, Users, StickyNote, Save, Loader2, Trash2,
   ArrowUpRight, ArrowDownRight, Minus, Calendar
 } from "lucide-react";
+import CategoryPlaceholder from "@/components/CategoryPlaceholder";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
@@ -126,7 +127,7 @@ const ItemDetailModal = ({ item, onClose, onDelete, onUpdateNotes, allItems }: I
                 {item.user_photo_url ? (
                   <img src={item.user_photo_url} alt="Tu foto" className="h-full w-full object-cover cursor-zoom-in" onClick={() => setLightboxSrc(item.user_photo_url)} />
                 ) : (
-                  <div className="flex h-full items-center justify-center"><ImageOff size={24} className="text-muted-foreground" /></div>
+                  <CategoryPlaceholder category={item.category} className="h-full w-full" />
                 )}
               </div>
             </div>
@@ -136,9 +137,7 @@ const ItemDetailModal = ({ item, onClose, onDelete, onUpdateNotes, allItems }: I
                 {item.official_image_url ? (
                   <img src={item.official_image_url} alt={item.name} className="h-full w-full object-contain p-1 cursor-zoom-in" onClick={() => setLightboxSrc(item.official_image_url)} />
                 ) : (
-                  <div className="flex h-full flex-col items-center justify-center gap-1 text-muted-foreground">
-                    <ImageOff size={24} /><p className="text-[10px]">No disponible</p>
-                  </div>
+                  <CategoryPlaceholder category={item.category} className="h-full w-full" />
                 )}
               </div>
             </div>
@@ -339,7 +338,7 @@ const ItemDetailModal = ({ item, onClose, onDelete, onUpdateNotes, allItems }: I
                           {other.official_image_url ? (
                             <img src={other.official_image_url} alt={other.name} className="h-full w-full object-contain p-0.5" />
                           ) : (
-                            <div className="flex h-full w-full items-center justify-center text-sm">📦</div>
+                            <CategoryPlaceholder category={other.category} className="h-full w-full" />
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
