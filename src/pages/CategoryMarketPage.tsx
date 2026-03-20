@@ -243,13 +243,33 @@ export default function CategoryMarketPage() {
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
             <ArrowLeft size={20} />
           </Button>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-1 items-center gap-2">
             <span className="text-2xl">{category.icon}</span>
             <div>
               <h1 className="font-serif text-lg font-bold">{category.label}</h1>
-              <p className="text-xs text-muted-foreground">Análisis de mercado</p>
+              <div className="flex items-center gap-2">
+                <p className="text-xs text-muted-foreground">Análisis de mercado</p>
+                {isLive ? (
+                  <span className="flex items-center gap-1 text-[10px] font-medium text-green-400">
+                    <Wifi size={10} /> En vivo
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1 text-[10px] font-medium text-muted-foreground">
+                    <WifiOff size={10} /> Datos estimados
+                  </span>
+                )}
+              </div>
             </div>
           </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => refetch()}
+            disabled={isFetching}
+            className="shrink-0"
+          >
+            {isFetching ? <Loader2 size={18} className="animate-spin" /> : <RefreshCw size={18} />}
+          </Button>
         </div>
 
         {/* Filters */}
