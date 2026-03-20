@@ -192,7 +192,20 @@ export default function CategoryMarketPage() {
   const [priceRange, setPriceRange] = useState(0);
   const [conditionFilter, setConditionFilter] = useState<string>("all");
 
-  const allItems = marketDataByCategory[categoryId || ""] || [];
+  // Fetch live data with fallback to mock
+  const { data: liveData, isLoading, isError, refetch, isFetching } = useQuery({
+    queryKey: ["market-prices", categoryId],
+    queryFn: () => fetchMarketPrices(categoryId || "", category?.label || ""),
+    enabled: !!categoryId && !!category,
+    staleTime: 5 * 60 * 1000, // 5 min cache
+    retry: 1,
+  });
+
+  const isLive = !!liveData && !isError;
+  const allItems: MarketItem[] = isLive
+    ? liveData.items
+    : marketDataByCategory[categoryId || ""] || [];
+
   const conditions = useMemo(() => {
     const set = new Set(allItems.map((i) => i.condition));
     return Array.from(set);
@@ -207,9 +220,10 @@ export default function CategoryMarketPage() {
     });
   };
 
-  const topValuable = filterItems(getTopValuable(categoryId || ""));
-  const rising = filterItems(getRising(categoryId || ""));
-  const falling = filterItems(getFalling(categoryId || ""));
+  const sorted = [...allItems];
+  const topValuable = filterItems(sorted.sort((a, b) => b.currentPrice - a.currentPrice));
+  const rising = filterItems([...allItems].filter(i => i.change > 0).sort((a, b) => b.change - a.change));
+  const falling = filterItems([...allItems].filter(i => i.change < 0).sort((a, b) => a.change - b.change));
 
   if (!category) {
     return (
