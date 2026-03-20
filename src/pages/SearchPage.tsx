@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/chart";
 import { Area, AreaChart, XAxis, YAxis } from "recharts";
 import CategoryPlaceholder from "@/components/CategoryPlaceholder";
+import SearchRecommendations from "@/components/SearchRecommendations";
 import { categories } from "@/lib/mockData";
 import { formatPrice, type MarketItem } from "@/lib/marketData";
 import {
@@ -30,6 +31,7 @@ import {
   type SearchResult,
   type AutocompleteSuggestion,
 } from "@/lib/api/searchCollectibles";
+import { addSearchEntry, addViewedItem } from "@/lib/searchHistory";
 
 const rarityOptions = ["Común", "Poco Común", "Raro", "Muy Raro", "Ultra Raro"];
 const trendOptions = [
