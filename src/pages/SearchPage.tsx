@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/chart";
 import { Area, AreaChart, XAxis, YAxis } from "recharts";
 import CategoryPlaceholder from "@/components/CategoryPlaceholder";
+import SearchRecommendations from "@/components/SearchRecommendations";
 import { categories } from "@/lib/mockData";
 import { formatPrice, type MarketItem } from "@/lib/marketData";
 import {
@@ -30,6 +31,7 @@ import {
   type SearchResult,
   type AutocompleteSuggestion,
 } from "@/lib/api/searchCollectibles";
+import { addSearchEntry, addViewedItem } from "@/lib/searchHistory";
 
 const rarityOptions = ["Común", "Poco Común", "Raro", "Muy Raro", "Ultra Raro"];
 const trendOptions = [
@@ -149,12 +151,24 @@ function ItemDetailSheet({ item, children }: { item: SearchResult; children: Rea
 
 function ResultCard({ item, index }: { item: SearchResult; index: number }) {
   const isUp = item.change >= 0;
+  const handleClick = () => {
+    addViewedItem({
+      id: item.id,
+      name: item.name,
+      category: item.category,
+      price: item.currentPrice,
+      rarity: item.rarity,
+      year: item.year,
+      series: item.series,
+    });
+  };
   return (
     <ItemDetailSheet item={item}>
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: index * 0.04 }}
+        onClick={handleClick}
         className="glass flex cursor-pointer items-center gap-3 rounded-xl p-3 transition-all hover:border-primary/40 hover:shadow-gold active:scale-[0.98]"
       >
         <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg">
@@ -205,6 +219,7 @@ export default function SearchPage() {
   const [selectedIdx, setSelectedIdx] = useState(-1);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [filters, setFilters] = useState<SearchFilters>({});
+  const [recRefreshKey, setRecRefreshKey] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
   const suggestionsRef = useRef<HTMLDivElement>(null);
@@ -259,13 +274,47 @@ export default function SearchPage() {
     setSearchQuery(searchVal);
     setShowSuggestions(false);
     setSelectedIdx(-1);
-  }, [query]);
+    // Track search history
+    addSearchEntry(searchVal, filters.category);
+    setRecRefreshKey((k) => k + 1);
+  }, [query, filters.category]);
 
   const selectSuggestion = (s: AutocompleteSuggestion) => {
     setQuery(s.name);
     setSearchQuery(s.name);
     setShowSuggestions(false);
     setSelectedIdx(-1);
+    addSearchEntry(s.name, s.category);
+    addViewedItem({
+      id: s.id,
+      name: s.name,
+      category: s.category,
+      price: s.price,
+      rarity: s.rarity,
+      year: s.year,
+      series: s.series,
+    });
+    setRecRefreshKey((k) => k + 1);
+  };
+
+  const handleRecSelectItem = (item: any) => {
+    setQuery(item.name);
+    setSearchQuery(item.name);
+    addViewedItem({
+      id: item.id,
+      name: item.name,
+      category: item.category,
+      price: item.currentPrice,
+      rarity: item.rarity,
+      year: item.year,
+      series: item.series,
+    });
+    setRecRefreshKey((k) => k + 1);
+  };
+
+  const handleRecSearchQuery = (q: string) => {
+    setQuery(q);
+    executeSearch(q);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -600,24 +649,34 @@ export default function SearchPage() {
       {/* Results */}
       <div className="px-4 pt-4">
         {!searchQuery && !isLoading && (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <Sparkles size={48} className="text-primary/30 mb-4" />
-            <h2 className="font-serif text-xl font-semibold">Buscar Coleccionables</h2>
-            <p className="mt-2 max-w-xs text-sm text-muted-foreground">
-              Busca por nombre, serie, año o ID. Usa los filtros para refinar los resultados.
-            </p>
-            <div className="mt-6 flex flex-wrap justify-center gap-2">
-              {["Charizard 1st Edition", "Action Comics #1", "Morgan Dollar 1893", "Black Lotus Alpha"].map((ex) => (
-                <Badge
-                  key={ex}
-                  variant="outline"
-                  className="cursor-pointer hover:bg-secondary"
-                  onClick={() => { setQuery(ex); executeSearch(ex); }}
-                >
-                  {ex}
-                </Badge>
-              ))}
+          <div className="space-y-6">
+            {/* Quick examples */}
+            <div className="flex flex-col items-center justify-center pt-8 pb-4 text-center">
+              <Sparkles size={36} className="text-primary/30 mb-3" />
+              <h2 className="font-serif text-lg font-semibold">Buscar Coleccionables</h2>
+              <p className="mt-1 max-w-xs text-xs text-muted-foreground">
+                Busca por nombre, serie, año o ID.
+              </p>
+              <div className="mt-3 flex flex-wrap justify-center gap-2">
+                {["Charizard 1st Edition", "Action Comics #1", "Morgan Dollar 1893", "Black Lotus Alpha"].map((ex) => (
+                  <Badge
+                    key={ex}
+                    variant="outline"
+                    className="cursor-pointer hover:bg-secondary"
+                    onClick={() => { setQuery(ex); executeSearch(ex); }}
+                  >
+                    {ex}
+                  </Badge>
+                ))}
+              </div>
             </div>
+
+            {/* Recommendations section */}
+            <SearchRecommendations
+              onSelectItem={handleRecSelectItem}
+              onSearchQuery={handleRecSearchQuery}
+              refreshKey={recRefreshKey}
+            />
           </div>
         )}
 
