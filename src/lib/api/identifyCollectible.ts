@@ -59,3 +59,28 @@ export async function identifyCollectible(imageBase64: string): Promise<Identify
 
   return data as IdentifyResponse;
 }
+
+export interface CoinRefinementParams {
+  country?: string;
+  year?: string;
+  face?: string;
+  denomination?: string;
+  originalName?: string;
+}
+
+export async function refineCoinIdentification(
+  params: CoinRefinementParams,
+  originalIdentification: IdentificationResult,
+): Promise<IdentifyResponse> {
+  const { data, error } = await supabase.functions.invoke('identify-collectible', {
+    body: {
+      coinRefinement: params,
+      identification: originalIdentification,
+    },
+  });
+
+  if (error) throw new Error(error.message || 'Failed to refine coin identification');
+  if (data?.error) throw new Error(data.error);
+
+  return data as IdentifyResponse;
+}
