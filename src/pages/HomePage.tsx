@@ -15,6 +15,7 @@ const features = [
 ];
 
 const HomePage = () => {
+  const navigate = useNavigate();
   return (
     <div className="min-h-screen pb-24">
       {/* Hero */}
