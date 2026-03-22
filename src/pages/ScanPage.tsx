@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { identifyCollectible, type IdentifyResponse } from "@/lib/api/identifyCollectible";
 import { setScanData } from "@/lib/scanStore";
+import { useAuth } from "@/contexts/AuthContext";
+import UsageBanner from "@/components/UsageBanner";
 
 const ScanPage = () => {
   const [image, setImage] = useState<string | null>(null);
