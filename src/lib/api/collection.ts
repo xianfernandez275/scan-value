@@ -1,6 +1,12 @@
 import { supabase } from '@/integrations/supabase/client';
 import type { IdentificationResult, OfficialImage } from './identifyCollectible';
 
+async function getCurrentUserId(): Promise<string> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('No autenticado');
+  return user.id;
+}
+
 export interface CollectionItem {
   id: string;
   created_at: string;
@@ -39,9 +45,11 @@ export async function addToCollection(
   gradingValue: string | null = null,
 ): Promise<CollectionItem> {
   // Store user photo as base64 in the DB for now (will use storage later)
+  const userId = await getCurrentUserId();
   const { data, error } = await supabase
     .from('collection_items')
     .insert({
+      user_id: userId,
       name: identification.name,
       category: identification.category,
       year: identification.year,

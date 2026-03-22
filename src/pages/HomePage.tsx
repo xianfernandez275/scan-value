@@ -1,9 +1,10 @@
 import { motion } from "framer-motion";
-import { Camera, Search, Sparkles, TrendingUp, Shield, Zap } from "lucide-react";
+import { Camera, Search, Sparkles, TrendingUp, Shield, Zap, Crown } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import heroImage from "@/assets/hero-collectibles.jpg";
 import { categories } from "@/lib/mockData";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/AuthContext";
 
 const features = [
   { icon: Camera, title: "Escaneo IA", desc: "Fotografía tu artículo y la IA lo identifica al instante" },
@@ -16,6 +17,7 @@ const features = [
 
 const HomePage = () => {
   const navigate = useNavigate();
+  const { user, isPremium } = useAuth();
   return (
     <div className="min-h-screen pb-24">
       {/* Hero */}
@@ -93,6 +95,34 @@ const HomePage = () => {
           })}
         </div>
       </section>
+
+      {/* Premium CTA */}
+      {!isPremium && (
+        <section className="px-6 py-8">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.6 }}
+            className="rounded-2xl border-2 border-primary/30 bg-card p-6 text-center shadow-gold"
+          >
+            <Crown size={32} className="mx-auto text-primary" />
+            <h3 className="mt-3 font-serif text-xl font-bold">
+              Desbloquea <span className="text-primary">Premium</span>
+            </h3>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Escaneos ilimitados, historial de precios, predicciones IA y más
+            </p>
+            <Button
+              size="lg"
+              className="mt-4 gap-2 font-semibold"
+              onClick={() => navigate(user ? "/pricing" : "/auth")}
+            >
+              <Zap size={16} />
+              {user ? "Ver Planes" : "Empieza Gratis"}
+            </Button>
+          </motion.div>
+        </section>
+      )}
     </div>
   );
 };

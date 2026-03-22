@@ -2,19 +2,29 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { BookOpen, TrendingUp, DollarSign, Package } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { getCollection, removeFromCollection, updateItemNotes, updateItemGrade, type CollectionItem } from "@/lib/api/collection";
 import ItemDetailModal from "@/components/ItemDetailModal";
 import CategoryPlaceholder from "@/components/CategoryPlaceholder";
 import { getGradeLabel } from "@/components/GradeSelector";
+import { useAuth } from "@/contexts/AuthContext";
+import UsageBanner from "@/components/UsageBanner";
+import { useNavigate } from "react-router-dom";
 const CollectionPage = () => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const [collection, setCollection] = useState<CollectionItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedItem, setSelectedItem] = useState<CollectionItem | null>(null);
 
   useEffect(() => {
-    loadCollection();
-  }, []);
+    if (user) loadCollection();
+    else {
+      setCollection([]);
+      setLoading(false);
+    }
+  }, [user]);
 
   const loadCollection = async () => {
     try {
@@ -67,6 +77,17 @@ const CollectionPage = () => {
         </h1>
         <p className="mt-2 text-muted-foreground">Gestiona y valora tus artículos</p>
       </motion.div>
+
+      {!user && (
+        <div className="mt-12 flex flex-col items-center gap-3 text-center">
+          <BookOpen size={48} className="text-muted-foreground" />
+          <p className="text-muted-foreground">Inicia sesión para ver tu colección</p>
+          <Button onClick={() => navigate("/auth")}>Iniciar Sesión</Button>
+        </div>
+      )}
+
+      {user && <>
+      <UsageBanner type="collection" currentCount={collection.length} />
 
       {/* Stats */}
       <div className="mt-8 grid grid-cols-3 gap-3">
@@ -171,6 +192,7 @@ const CollectionPage = () => {
           />
         )}
       </AnimatePresence>
+      </>}
     </div>
   );
 };

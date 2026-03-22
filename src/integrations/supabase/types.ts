@@ -40,6 +40,7 @@ export type Database = {
           set_or_edition: string | null
           special_features: string[] | null
           tcg_set_id: string | null
+          user_id: string | null
           user_photo_url: string | null
           variant: string | null
           year: number | null
@@ -69,6 +70,7 @@ export type Database = {
           set_or_edition?: string | null
           special_features?: string[] | null
           tcg_set_id?: string | null
+          user_id?: string | null
           user_photo_url?: string | null
           variant?: string | null
           year?: number | null
@@ -98,9 +100,34 @@ export type Database = {
           set_or_edition?: string | null
           special_features?: string[] | null
           tcg_set_id?: string | null
+          user_id?: string | null
           user_photo_url?: string | null
           variant?: string | null
           year?: number | null
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          id: string
+          plan: string
+          scans_month_reset: string
+          scans_used_this_month: number
+        }
+        Insert: {
+          created_at?: string
+          id: string
+          plan?: string
+          scans_month_reset?: string
+          scans_used_this_month?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          plan?: string
+          scans_month_reset?: string
+          scans_used_this_month?: number
         }
         Relationships: []
       }

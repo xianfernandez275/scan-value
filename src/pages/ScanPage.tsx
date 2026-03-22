@@ -6,12 +6,15 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { identifyCollectible, type IdentifyResponse } from "@/lib/api/identifyCollectible";
 import { setScanData } from "@/lib/scanStore";
+import { useAuth } from "@/contexts/AuthContext";
+import UsageBanner from "@/components/UsageBanner";
 
 const ScanPage = () => {
   const [image, setImage] = useState<string | null>(null);
   const [scanning, setScanning] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
+  const { user, scansRemaining, isPremium, incrementScanCount } = useAuth();
 
   const handleFile = useCallback((file: File) => {
     const reader = new FileReader();
@@ -30,12 +33,23 @@ const ScanPage = () => {
 
   const startScan = async () => {
     if (!image) return;
+    if (!user) {
+      toast.error("Inicia sesión para escanear artículos");
+      navigate("/auth");
+      return;
+    }
+    if (!isPremium && scansRemaining <= 0) {
+      toast.error("Has alcanzado el límite de escaneos. Mejora a Premium para escaneos ilimitados.");
+      navigate("/pricing");
+      return;
+    }
     setScanning(true);
 
     try {
       const result = await identifyCollectible(image);
 
       if (result.success && result.identification) {
+        await incrementScanCount();
         setScanData(result, image);
         navigate("/results");
       } else {
@@ -60,6 +74,7 @@ const ScanPage = () => {
 
   return (
     <div className="min-h-screen px-6 pb-24 pt-12">
+      <UsageBanner type="scan" />
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
         <h1 className="font-serif text-3xl font-bold">
           Escanear <span className="text-primary">Artículo</span>
