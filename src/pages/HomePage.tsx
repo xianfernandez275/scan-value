@@ -17,6 +17,7 @@ const features = [
 
 const HomePage = () => {
   const navigate = useNavigate();
+  const { user, isPremium } = useAuth();
   return (
     <div className="min-h-screen pb-24">
       {/* Hero */}
