@@ -191,6 +191,7 @@ const CollectionPage = () => {
           />
         )}
       </AnimatePresence>
+      </>}
     </div>
   );
 };
