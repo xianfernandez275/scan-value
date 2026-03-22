@@ -20,6 +20,21 @@ const HomePage = () => {
   const { user, isPremium } = useAuth();
   return (
     <div className="min-h-screen pb-24">
+      {/* Auth button top-right */}
+      <div className="absolute top-4 right-4 z-20">
+        {user ? (
+          <Button variant="outline" size="sm" className="gap-2" onClick={() => navigate("/pricing")}>
+            <Crown size={16} />
+            {isPremium ? "Premium" : "Mi Cuenta"}
+          </Button>
+        ) : (
+          <Button variant="outline" size="sm" className="gap-2" onClick={() => navigate("/auth")}>
+            <User size={16} />
+            Iniciar Sesión
+          </Button>
+        )}
+      </div>
+
       {/* Hero */}
       <section className="relative h-[70vh] min-h-[500px] overflow-hidden">
         <div className="absolute inset-0">
