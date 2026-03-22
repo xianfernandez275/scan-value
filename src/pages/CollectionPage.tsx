@@ -18,8 +18,12 @@ const CollectionPage = () => {
   const [selectedItem, setSelectedItem] = useState<CollectionItem | null>(null);
 
   useEffect(() => {
-    loadCollection();
-  }, []);
+    if (user) loadCollection();
+    else {
+      setCollection([]);
+      setLoading(false);
+    }
+  }, [user]);
 
   const loadCollection = async () => {
     try {
