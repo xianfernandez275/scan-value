@@ -7,7 +7,12 @@ import { getCollection, removeFromCollection, updateItemNotes, updateItemGrade, 
 import ItemDetailModal from "@/components/ItemDetailModal";
 import CategoryPlaceholder from "@/components/CategoryPlaceholder";
 import { getGradeLabel } from "@/components/GradeSelector";
+import { useAuth } from "@/contexts/AuthContext";
+import UsageBanner from "@/components/UsageBanner";
+import { useNavigate } from "react-router-dom";
 const CollectionPage = () => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const [collection, setCollection] = useState<CollectionItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedItem, setSelectedItem] = useState<CollectionItem | null>(null);
