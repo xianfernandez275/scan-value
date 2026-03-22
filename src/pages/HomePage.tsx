@@ -47,6 +47,7 @@ const HomePage = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
           >
+            <img src={logoIcon} alt="ColecScan" className="mx-auto mb-4 h-16 w-16 drop-shadow-lg" />
             <h1 className="font-serif text-5xl font-bold tracking-tight md:text-7xl">
               Colec<span className="text-primary">Scan</span>
             </h1>
