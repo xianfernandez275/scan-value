@@ -5,6 +5,7 @@ import heroImage from "@/assets/hero-collectibles.jpg";
 import { categories } from "@/lib/mockData";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
+import logoIcon from "@/assets/logo-icon.png";
 
 const features = [
   { icon: Camera, title: "Escaneo IA", desc: "Fotografía tu artículo y la IA lo identifica al instante" },
