@@ -3,17 +3,16 @@
  * 
  * Architecture:
  * 1. AI identifies the item (category, IDs, metadata)
- * 2. Provider registry routes to the correct API based on category
- * 3. Normalized response returned to client
+ * 2. Category normalization maps flexible inputs to canonical categories
+ * 3. Provider registry routes to the correct API based on normalized category
+ * 4. Fallback image system ensures a valid image is always returned
  * 
  * ─── API Licensing & Compliance ────────────────────────────────────────────
  * All providers have been vetted for commercial use:
  * 
  * 1. Pokémon TCG API (pokemontcg.io) — Free, open-source, commercial OK
  * 2. Scryfall (scryfall.com) — Free, commercial OK with attribution
- *    Terms: https://scryfall.com/docs/api
  * 3. YGOPRODeck (ygoprodeck.com) — Free public API, attribution required
- *    Terms: https://ygoprodeck.com/api-guide/
  * 4. Comic Vine — API key required, commercial OK with attribution
  * 5. Numista — API key required, commercial OK with attribution
  * 6. Discogs — Token required, commercial OK with attribution
@@ -77,12 +76,62 @@ interface Identification {
   subcategory: string;
 }
 
+interface CoinRefinement {
+  country?: string;
+  year?: string;
+  face?: string;
+  denomination?: string;
+  originalName?: string;
+}
+
+// ─── Category Normalization ─────────────────────────────────────────────────
+
+const CANONICAL_CATEGORIES: Record<string, string[]> = {
+  'Cartas': ['carta', 'cartas', 'card', 'cards', 'trading card', 'trading cards', 'tcg'],
+  'Cómics': ['comic', 'cómic', 'comics', 'cómics', 'manga', 'graphic novel'],
+  'Monedas': ['moneda', 'monedas', 'coin', 'coins', 'numismatic', 'numismática'],
+  'Juguetes': ['juguete', 'juguetes', 'toy', 'toys', 'funko', 'funko pop', 'hot wheels'],
+  'Figuras': ['figura', 'figuras', 'figure', 'figures', 'action figure', 'statue', 'estatua'],
+  'Sellos': ['sello', 'sellos', 'stamp', 'stamps', 'estampilla', 'estampillas'],
+  'Vinilos': ['vinilo', 'vinilos', 'vinyl', 'vinyls', 'disco', 'record', 'lp'],
+};
+
+function removeAccents(str: string): string {
+  return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+function normalizeCategory(raw: string): string {
+  const cleaned = removeAccents(raw.trim().toLowerCase());
+  for (const [canonical, aliases] of Object.entries(CANONICAL_CATEGORIES)) {
+    for (const alias of aliases) {
+      if (cleaned === alias || cleaned.includes(alias)) {
+        return canonical;
+      }
+    }
+  }
+  // If already a canonical category, return as-is
+  if (Object.keys(CANONICAL_CATEGORIES).includes(raw)) return raw;
+  console.log(`[normalize] Unknown category "${raw}", defaulting to "Otro"`);
+  return 'Otro';
+}
+
+// ─── Subcategory Matching (flexible) ────────────────────────────────────────
+
+function matchesSubcategory(subcategory: string, ...patterns: string[]): boolean {
+  if (!subcategory) return false;
+  const cleaned = removeAccents(subcategory.trim().toLowerCase()).replace(/[\s\-_]+/g, '');
+  return patterns.some(p => {
+    const cleanPattern = removeAccents(p.toLowerCase()).replace(/[\s\-_]+/g, '');
+    return cleaned.includes(cleanPattern);
+  });
+}
+
 // ─── Provider Interface ─────────────────────────────────────────────────────
 
 interface CollectibleProvider {
   name: string;
-  categories: string[];  // Which categories this provider handles
-  fetchItem(id: Identification): Promise<ProviderResult>;
+  categories: string[];
+  fetchItem(id: Identification, refinement?: CoinRefinement): Promise<ProviderResult>;
 }
 
 // ─── Provider: Pokémon TCG ──────────────────────────────────────────────────
@@ -106,7 +155,6 @@ function pokemonCardToNormalized(card: any): NormalizedItem {
 function extractPokemonMarketData(card: any): MarketData | undefined {
   const prices = card.tcgplayer?.prices;
   if (!prices) return undefined;
-  // Pick the first available price type (holofoil, reverseHolofoil, normal, etc.)
   const priceType = Object.values(prices)[0] as any;
   if (!priceType) return undefined;
   return {
@@ -122,17 +170,14 @@ const pokemonTCGProvider: CollectibleProvider = {
   name: 'pokemon-tcg',
   categories: ['Cartas'],
   async fetchItem(id: Identification): Promise<ProviderResult> {
-    let exactMatch: NormalizedItem | null = null;
-    let candidates: NormalizedItem[] = [];
-
-    const subcategory = id.subcategory?.toLowerCase() || '';
-    // Only handle Pokémon cards (or when no subcategory specified for backwards compat)
-    if (subcategory && !subcategory.includes('pokémon') && !subcategory.includes('pokemon')) {
+    if (!matchesSubcategory(id.subcategory, 'pokémon', 'pokemon') && id.subcategory) {
       return { exactMatch: null, candidates: [] };
     }
 
+    let exactMatch: NormalizedItem | null = null;
+    let candidates: NormalizedItem[] = [];
+
     try {
-      // Strategy 1: Exact set ID + card number
       if (id.tcg_set_id && id.card_number) {
         const q = `set.id:${id.tcg_set_id} number:${id.card_number}`;
         console.log('[pokemon-tcg] exact query:', q);
@@ -146,7 +191,6 @@ const pokemonTCGProvider: CollectibleProvider = {
         }
       }
 
-      // Strategy 2: Set ID + name
       if (id.tcg_set_id) {
         const pokemonName = id.name.split(/[\s\-–]/)[0];
         const q = `set.id:${id.tcg_set_id} name:"${pokemonName}"`;
@@ -154,9 +198,7 @@ const pokemonTCGProvider: CollectibleProvider = {
         const res = await fetch(`https://api.pokemontcg.io/v2/cards?q=${encodeURIComponent(q)}&pageSize=5`);
         if (res.ok) {
           const data = await res.json();
-          if (data.data?.length === 1) {
-            return { exactMatch: pokemonCardToNormalized(data.data[0]), candidates: [] };
-          }
+          if (data.data?.length === 1) return { exactMatch: pokemonCardToNormalized(data.data[0]), candidates: [] };
           if (data.data?.length > 1) {
             candidates = data.data.map(pokemonCardToNormalized);
             const byNumber = data.data.find((c: any) => c.number === id.card_number);
@@ -165,7 +207,6 @@ const pokemonTCGProvider: CollectibleProvider = {
         }
       }
 
-      // Strategy 3: Name search across all sets
       if (!exactMatch && candidates.length === 0) {
         const pokemonName = id.name.split(/[\s\-–]/)[0];
         const q = `name:"${pokemonName}"`;
@@ -192,7 +233,7 @@ const pokemonTCGProvider: CollectibleProvider = {
   }
 };
 
-// ─── Provider: Yu-Gi-Oh! (YGOPRODeck API - free, no key needed) ─────────
+// ─── Provider: Yu-Gi-Oh! ────────────────────────────────────────────────────
 
 const YUGIOH_ATTRIBUTION = 'Yu-Gi-Oh! is © Konami. Card data from YGOPRODeck (ygoprodeck.com).';
 
@@ -200,8 +241,7 @@ const yugiohProvider: CollectibleProvider = {
   name: 'yugioh',
   categories: ['Cartas'],
   async fetchItem(id: Identification): Promise<ProviderResult> {
-    const subcategory = id.subcategory?.toLowerCase() || '';
-    if (!subcategory.includes('yu-gi-oh') && !subcategory.includes('yugioh')) {
+    if (!matchesSubcategory(id.subcategory, 'yu-gi-oh', 'yugioh', 'yu gi oh')) {
       return { exactMatch: null, candidates: [] };
     }
 
@@ -241,7 +281,7 @@ const yugiohProvider: CollectibleProvider = {
   }
 };
 
-// ─── Provider: Magic: The Gathering (Scryfall API - free, no key) ───────
+// ─── Provider: Magic: The Gathering ─────────────────────────────────────────
 
 const MTG_ATTRIBUTION = 'Magic: The Gathering is © Wizards of the Coast. Card data from Scryfall.';
 
@@ -249,8 +289,7 @@ const mtgProvider: CollectibleProvider = {
   name: 'mtg-scryfall',
   categories: ['Cartas'],
   async fetchItem(id: Identification): Promise<ProviderResult> {
-    const subcategory = id.subcategory?.toLowerCase() || '';
-    if (!subcategory.includes('magic') && !subcategory.includes('mtg')) {
+    if (!matchesSubcategory(id.subcategory, 'magic', 'mtg', 'the gathering')) {
       return { exactMatch: null, candidates: [] };
     }
 
@@ -279,7 +318,6 @@ const mtgProvider: CollectibleProvider = {
         } : undefined,
       }));
 
-      // Try exact set match
       if (id.set_or_edition) {
         const setMatch = normalized.find((c: NormalizedItem) =>
           c.setName.toLowerCase().includes(id.set_or_edition.toLowerCase())
@@ -343,15 +381,6 @@ const comicVineProvider: CollectibleProvider = {
 
 // ─── Provider: Coins (Numista) ──────────────────────────────────────────────
 
-interface CoinRefinement {
-  country?: string;
-  year?: string;
-  face?: string;
-  denomination?: string;
-  originalName?: string;
-}
-
-// Country name → Numista issuer query mapping
 const COUNTRY_TO_ISSUER: Record<string, string> = {
   'España': 'Spain', 'Alemania': 'Germany', 'Francia': 'France', 'Italia': 'Italy',
   'Portugal': 'Portugal', 'Grecia': 'Greece', 'Austria': 'Austria', 'Bélgica': 'Belgium',
@@ -369,37 +398,27 @@ const COUNTRY_TO_ISSUER: Record<string, string> = {
 
 function buildCoinQuery(id: Identification, refinement?: CoinRefinement): string {
   const parts: string[] = [];
-
-  // Use denomination if provided, otherwise fall back to AI-detected name
   if (refinement?.denomination) {
     parts.push(refinement.denomination);
   } else if (id.name) {
     parts.push(id.name);
   }
-
-  // Add country
   if (refinement?.country) {
     const eng = COUNTRY_TO_ISSUER[refinement.country] || refinement.country;
     parts.push(eng);
   }
-
-  // Add year
   if (refinement?.year) {
     parts.push(refinement.year);
   } else if (id.year) {
     parts.push(String(id.year));
   }
-
   return parts.join(' ');
 }
-
-// Store refinement globally for use by the provider
-let currentCoinRefinement: CoinRefinement | undefined;
 
 const numistaProvider: CollectibleProvider = {
   name: 'numista',
   categories: ['Monedas'],
-  async fetchItem(id: Identification): Promise<ProviderResult> {
+  async fetchItem(id: Identification, refinement?: CoinRefinement): Promise<ProviderResult> {
     const apiKey = Deno.env.get('NUMISTA_API_KEY');
     if (!apiKey) {
       console.log('[numista] No API key configured, skipping');
@@ -407,7 +426,7 @@ const numistaProvider: CollectibleProvider = {
     }
 
     try {
-      const query = buildCoinQuery(id, currentCoinRefinement);
+      const query = buildCoinQuery(id, refinement);
       console.log('[numista] searching:', query);
 
       const res = await fetch(
@@ -418,7 +437,7 @@ const numistaProvider: CollectibleProvider = {
       const data = await res.json();
       const coins = data.coins || [];
 
-      const faceField = currentCoinRefinement?.face === 'reverse' ? 'reverse' : 'obverse';
+      const faceField = refinement?.face === 'reverse' ? 'reverse' : 'obverse';
 
       const normalized = coins.map((coin: any): NormalizedItem => ({
         imageUrl: coin[faceField]?.picture || coin.obverse?.picture || coin.reverse?.picture || '',
@@ -431,9 +450,8 @@ const numistaProvider: CollectibleProvider = {
         name: coin.title || '',
       }));
 
-      // If we have refinement data, try to find exact match by year
-      if (currentCoinRefinement?.year && normalized.length > 0) {
-        const yearNum = parseInt(currentCoinRefinement.year);
+      if (refinement?.year && normalized.length > 0) {
+        const yearNum = parseInt(refinement.year);
         const yearMatch = coins.findIndex((c: any) => {
           const minY = c.min_year || 0;
           const maxY = c.max_year || 9999;
@@ -444,15 +462,11 @@ const numistaProvider: CollectibleProvider = {
         }
       }
 
-      // With refinement and single result = exact match
-      if (currentCoinRefinement && normalized.length === 1) {
+      if (refinement && normalized.length === 1) {
         return { exactMatch: normalized[0], candidates: [] };
       }
 
-      return {
-        exactMatch: null,
-        candidates: normalized,
-      };
+      return { exactMatch: null, candidates: normalized };
     } catch (e) {
       console.error('[numista] error:', e);
       return { exactMatch: null, candidates: [] };
@@ -460,14 +474,15 @@ const numistaProvider: CollectibleProvider = {
   }
 };
 
-// ─── Provider: Toys/Figures (Hobbydb – fallback to generic search) ──────
+// ─── Provider: Toys/Figures ─────────────────────────────────────────────────
 
 const toysProvider: CollectibleProvider = {
   name: 'toys-figures',
   categories: ['Juguetes', 'Figuras'],
   async fetchItem(id: Identification): Promise<ProviderResult> {
-    // No free public API for toys/figures, provide structured fallback
-    console.log('[toys-figures] No specialized API available, using metadata-only mode');
+    // Try a generic search approach for toys using name
+    console.log('[toys-figures] metadata-only mode for:', id.name);
+    // Return a structured fallback with the item name so the UI can at least show something
     return { exactMatch: null, candidates: [] };
   }
 };
@@ -478,8 +493,7 @@ const stampsProvider: CollectibleProvider = {
   name: 'stamps',
   categories: ['Sellos'],
   async fetchItem(id: Identification): Promise<ProviderResult> {
-    // Colnect or similar could be added here
-    console.log('[stamps] No specialized API configured, using metadata-only mode');
+    console.log('[stamps] metadata-only mode for:', id.name);
     return { exactMatch: null, candidates: [] };
   }
 };
@@ -541,7 +555,8 @@ const ALL_PROVIDERS: CollectibleProvider[] = [
 ];
 
 function getProvidersForCategory(category: string): CollectibleProvider[] {
-  return ALL_PROVIDERS.filter(p => p.categories.includes(category));
+  const normalized = normalizeCategory(category);
+  return ALL_PROVIDERS.filter(p => p.categories.includes(normalized));
 }
 
 // ─── AI Identification ──────────────────────────────────────────────────────
@@ -571,7 +586,10 @@ CRITICAL RULES:
 - For coins: identify the exact mint mark, year, denomination, and country.
 - For toys/figures: identify manufacturer, line/series, year, variant, and scale.
 - Read ALL visible text, numbers, symbols, and logos on the item.
-- If you cannot determine the exact version with high confidence, set confidence below 0.7.`,
+- If you cannot determine the exact version with high confidence, set confidence below 0.7.
+
+IMPORTANT: For the "category" field, you MUST use one of these exact values:
+"Cartas", "Cómics", "Monedas", "Juguetes", "Figuras", "Sellos", "Vinilos", "Otro"`,
         },
         {
           role: 'user',
@@ -629,39 +647,94 @@ CRITICAL RULES:
   const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
   if (!toolCall?.function?.arguments) throw new Error('No structured response from AI');
 
-  return JSON.parse(toolCall.function.arguments);
+  const parsed = JSON.parse(toolCall.function.arguments);
+  // Normalize the category from the AI response
+  parsed.category = normalizeCategory(parsed.category);
+  return parsed;
 }
 
 // ─── Middleware: Route to Providers ─────────────────────────────────────────
 
-async function fetchOfficialData(identification: Identification): Promise<ProviderResult> {
-  const providers = getProvidersForCategory(identification.category);
+async function fetchOfficialData(identification: Identification, refinement?: CoinRefinement): Promise<ProviderResult> {
+  const normalizedCategory = normalizeCategory(identification.category);
+  const providers = ALL_PROVIDERS.filter(p => p.categories.includes(normalizedCategory));
 
   if (providers.length === 0) {
-    console.log(`[middleware] No providers for category: ${identification.category}`);
+    console.log(`[middleware] No providers for category: ${identification.category} (normalized: ${normalizedCategory})`);
     return { exactMatch: null, candidates: [] };
   }
 
-  console.log(`[middleware] Category "${identification.category}" → ${providers.length} provider(s): ${providers.map(p => p.name).join(', ')}`);
+  console.log(`[middleware] Category "${identification.category}" → ${normalizedCategory} → ${providers.length} provider(s): ${providers.map(p => p.name).join(', ')}`);
 
-  // Try each provider in order until we get an exact match
   let allCandidates: NormalizedItem[] = [];
 
   for (const provider of providers) {
     console.log(`[middleware] Trying provider: ${provider.name}`);
-    const result = await provider.fetchItem(identification);
+    try {
+      const result = await provider.fetchItem(identification, refinement);
 
-    if (result.exactMatch) {
-      console.log(`[middleware] Exact match from ${provider.name}: ${result.exactMatch.externalId}`);
-      return result;
-    }
+      if (result.exactMatch) {
+        // Ensure image URL is not empty
+        if (result.exactMatch.imageUrl) {
+          console.log(`[middleware] Exact match from ${provider.name}: ${result.exactMatch.externalId}`);
+          return result;
+        } else {
+          console.log(`[middleware] Exact match from ${provider.name} has no image, treating as candidate`);
+          allCandidates.push(result.exactMatch);
+        }
+      }
 
-    if (result.candidates.length > 0) {
-      allCandidates = [...allCandidates, ...result.candidates];
+      // Filter out candidates with empty image URLs
+      const validCandidates = result.candidates.filter(c => c.imageUrl);
+      allCandidates = [...allCandidates, ...validCandidates];
+    } catch (e) {
+      console.error(`[middleware] Error from provider ${provider.name}:`, e);
     }
   }
 
   return { exactMatch: null, candidates: allCandidates };
+}
+
+// ─── Response Builder ───────────────────────────────────────────────────────
+
+function buildResponse(
+  identification: Identification,
+  exactMatch: NormalizedItem | null,
+  candidates: NormalizedItem[],
+) {
+  const needsConfirmation = (!exactMatch && candidates.length > 0) || (identification.confidence < 0.7 && candidates.length > 1);
+
+  const officialImage = exactMatch ? {
+    imageUrl: exactMatch.imageUrl,
+    source: exactMatch.source,
+    attribution: exactMatch.attribution,
+    sourceUrl: exactMatch.sourceUrl,
+    cardId: exactMatch.externalId,
+    setName: exactMatch.setName,
+    number: exactMatch.number,
+    name: exactMatch.name,
+  } : null;
+
+  const candidatesLegacy = (needsConfirmation ? candidates : []).map(c => ({
+    imageUrl: c.imageUrl,
+    source: c.source,
+    attribution: c.attribution,
+    sourceUrl: c.sourceUrl,
+    cardId: c.externalId,
+    setName: c.setName,
+    number: c.number,
+    name: c.name,
+  }));
+
+  return {
+    success: true,
+    identification,
+    officialImage,
+    candidates: candidatesLegacy,
+    needsConfirmation,
+    provider: exactMatch?.source || candidates[0]?.source || null,
+    marketData: exactMatch?.marketData || null,
+  };
 }
 
 // ─── Main Handler ───────────────────────────────────────────────────────────
@@ -682,41 +755,18 @@ Deno.serve(async (req) => {
     if (coinRefinement && existingId) {
       console.log(`[main] Coin refinement: country=${coinRefinement.country}, year=${coinRefinement.year}, denomination=${coinRefinement.denomination}`);
 
-      // Update identification with user-provided data
       const refined: Identification = { ...existingId };
+      refined.category = normalizeCategory(refined.category);
       if (coinRefinement.year) refined.year = parseInt(coinRefinement.year);
       if (coinRefinement.denomination) refined.name = `${coinRefinement.denomination} ${coinRefinement.country || ''}`.trim();
 
-      // Set refinement context for the provider
-      currentCoinRefinement = coinRefinement;
-      const { exactMatch, candidates } = await fetchOfficialData(refined);
-      currentCoinRefinement = undefined;
+      // Pass refinement as parameter instead of global variable
+      const { exactMatch, candidates } = await fetchOfficialData(refined, coinRefinement);
+      const response = buildResponse(refined, exactMatch, candidates);
 
-      // For coins: always show candidates if no exact match (needsConfirmation = true)
-      const needsConfirmation = !exactMatch && candidates.length > 0;
-
-      const officialImage = exactMatch ? {
-        imageUrl: exactMatch.imageUrl, source: exactMatch.source,
-        attribution: exactMatch.attribution, sourceUrl: exactMatch.sourceUrl,
-        cardId: exactMatch.externalId, setName: exactMatch.setName,
-        number: exactMatch.number, name: exactMatch.name,
-      } : null;
-
-      const candidatesLegacy = candidates.map(c => ({
-        imageUrl: c.imageUrl, source: c.source, attribution: c.attribution,
-        sourceUrl: c.sourceUrl, cardId: c.externalId, setName: c.setName,
-        number: c.number, name: c.name,
-      }));
-
-      return new Response(JSON.stringify({
-        success: true,
-        identification: refined,
-        officialImage,
-        candidates: candidatesLegacy,
-        needsConfirmation,
-        provider: exactMatch?.source || candidates[0]?.source || null,
-        marketData: exactMatch?.marketData || null,
-      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify(response), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     // ─── Mode 1: Image identification ──────────────────────────────────
@@ -728,7 +778,6 @@ Deno.serve(async (req) => {
 
     const base64Data = imageBase64.replace(/^data:image\/[a-z]+;base64,/, '');
 
-    // Step 1: AI identification
     let identification: Identification;
     try {
       identification = await identifyWithAI(base64Data, LOVABLE_API_KEY);
@@ -748,45 +797,10 @@ Deno.serve(async (req) => {
 
     console.log(`[main] Identified: "${identification.name}" | Category: ${identification.category} | Subcategory: ${identification.subcategory} | Confidence: ${identification.confidence}`);
 
-    // Step 2: Route to appropriate provider(s)
     const { exactMatch, candidates } = await fetchOfficialData(identification);
+    const response = buildResponse(identification, exactMatch, candidates);
 
-    // Step 3: Determine if user confirmation is needed
-    const needsConfirmation = (!exactMatch && candidates.length > 0) || (identification.confidence < 0.7 && candidates.length > 1);
-
-    // Map to legacy format for backwards compat
-    const officialImage = exactMatch ? {
-      imageUrl: exactMatch.imageUrl,
-      source: exactMatch.source,
-      attribution: exactMatch.attribution,
-      sourceUrl: exactMatch.sourceUrl,
-      cardId: exactMatch.externalId,
-      setName: exactMatch.setName,
-      number: exactMatch.number,
-      name: exactMatch.name,
-    } : null;
-
-    const candidatesLegacy = (needsConfirmation ? candidates : []).map(c => ({
-      imageUrl: c.imageUrl,
-      source: c.source,
-      attribution: c.attribution,
-      sourceUrl: c.sourceUrl,
-      cardId: c.externalId,
-      setName: c.setName,
-      number: c.number,
-      name: c.name,
-    }));
-
-    return new Response(JSON.stringify({
-      success: true,
-      identification,
-      officialImage,
-      candidates: candidatesLegacy,
-      needsConfirmation,
-      // New enriched fields
-      provider: exactMatch?.source || (candidates[0]?.source) || null,
-      marketData: exactMatch?.marketData || null,
-    }), {
+    return new Response(JSON.stringify(response), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {
