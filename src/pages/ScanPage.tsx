@@ -33,6 +33,16 @@ const ScanPage = () => {
 
   const startScan = async () => {
     if (!image) return;
+    if (!user) {
+      toast.error("Inicia sesión para escanear artículos");
+      navigate("/auth");
+      return;
+    }
+    if (!isPremium && scansRemaining <= 0) {
+      toast.error("Has alcanzado el límite de escaneos. Mejora a Premium para escaneos ilimitados.");
+      navigate("/pricing");
+      return;
+    }
     setScanning(true);
 
     try {
