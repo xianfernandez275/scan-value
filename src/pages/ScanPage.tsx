@@ -49,6 +49,7 @@ const ScanPage = () => {
       const result = await identifyCollectible(image);
 
       if (result.success && result.identification) {
+        await incrementScanCount();
         setScanData(result, image);
         navigate("/results");
       } else {
