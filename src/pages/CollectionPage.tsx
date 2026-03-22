@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { BookOpen, TrendingUp, DollarSign, Package } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { getCollection, removeFromCollection, updateItemNotes, updateItemGrade, type CollectionItem } from "@/lib/api/collection";
 import ItemDetailModal from "@/components/ItemDetailModal";
