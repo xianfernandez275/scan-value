@@ -74,6 +74,7 @@ const ScanPage = () => {
 
   return (
     <div className="min-h-screen px-6 pb-24 pt-12">
+      <UsageBanner type="scan" />
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
         <h1 className="font-serif text-3xl font-bold">
           Escanear <span className="text-primary">Artículo</span>
