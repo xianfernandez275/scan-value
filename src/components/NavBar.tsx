@@ -1,17 +1,19 @@
 import { Link, useLocation } from "react-router-dom";
-import { Camera, Home, BookOpen, TrendingUp, Search } from "lucide-react";
+import { Camera, Home, BookOpen, TrendingUp, Search, User, Crown } from "lucide-react";
 import { motion } from "framer-motion";
-
-const navItems = [
-  { path: "/", label: "Inicio", icon: Home },
-  { path: "/scan", label: "Escanear", icon: Camera },
-  { path: "/search", label: "Buscar", icon: Search },
-  { path: "/collection", label: "Colección", icon: BookOpen },
-  { path: "/market", label: "Mercado", icon: TrendingUp },
-];
+import { useAuth } from "@/contexts/AuthContext";
 
 const NavBar = () => {
   const location = useLocation();
+  const { user, isPremium } = useAuth();
+
+  const navItems = [
+    { path: "/", label: "Inicio", icon: Home },
+    { path: "/scan", label: "Escanear", icon: Camera },
+    { path: "/search", label: "Buscar", icon: Search },
+    { path: "/collection", label: "Colección", icon: BookOpen },
+    { path: user ? "/pricing" : "/auth", label: user ? (isPremium ? "Premium" : "Upgrade") : "Cuenta", icon: user ? (isPremium ? Crown : User) : User },
+  ];
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 glass border-t border-border/50 safe-area-bottom">
@@ -21,7 +23,7 @@ const NavBar = () => {
           const Icon = item.icon;
           return (
             <Link
-              key={item.path}
+              key={item.path + item.label}
               to={item.path}
               className="relative flex flex-col items-center gap-1 px-3 py-2 transition-colors"
             >

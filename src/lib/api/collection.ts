@@ -46,9 +46,11 @@ export async function addToCollection(
   gradingValue: string | null = null,
 ): Promise<CollectionItem> {
   // Store user photo as base64 in the DB for now (will use storage later)
+  const userId = await getCurrentUserId();
   const { data, error } = await supabase
     .from('collection_items')
     .insert({
+      user_id: userId,
       name: identification.name,
       category: identification.category,
       year: identification.year,
