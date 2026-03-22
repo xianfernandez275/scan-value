@@ -6,7 +6,6 @@ async function getCurrentUserId(): Promise<string> {
   if (!user) throw new Error('No autenticado');
   return user.id;
 }
-import type { IdentificationResult, OfficialImage } from './identifyCollectible';
 
 export interface CollectionItem {
   id: string;
