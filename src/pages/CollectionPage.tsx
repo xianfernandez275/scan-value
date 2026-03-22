@@ -77,6 +77,17 @@ const CollectionPage = () => {
         <p className="mt-2 text-muted-foreground">Gestiona y valora tus artículos</p>
       </motion.div>
 
+      {!user && (
+        <div className="mt-12 flex flex-col items-center gap-3 text-center">
+          <BookOpen size={48} className="text-muted-foreground" />
+          <p className="text-muted-foreground">Inicia sesión para ver tu colección</p>
+          <Button onClick={() => navigate("/auth")}>Iniciar Sesión</Button>
+        </div>
+      )}
+
+      {user && <>
+      <UsageBanner type="collection" currentCount={collection.length} />
+
       {/* Stats */}
       <div className="mt-8 grid grid-cols-3 gap-3">
         {[
