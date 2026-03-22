@@ -95,6 +95,34 @@ const HomePage = () => {
           })}
         </div>
       </section>
+
+      {/* Premium CTA */}
+      {!isPremium && (
+        <section className="px-6 py-8">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.6 }}
+            className="rounded-2xl border-2 border-primary/30 bg-card p-6 text-center shadow-gold"
+          >
+            <Crown size={32} className="mx-auto text-primary" />
+            <h3 className="mt-3 font-serif text-xl font-bold">
+              Desbloquea <span className="text-primary">Premium</span>
+            </h3>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Escaneos ilimitados, historial de precios, predicciones IA y más
+            </p>
+            <Button
+              size="lg"
+              className="mt-4 gap-2 font-semibold"
+              onClick={() => navigate(user ? "/pricing" : "/auth")}
+            >
+              <Zap size={16} />
+              {user ? "Ver Planes" : "Empieza Gratis"}
+            </Button>
+          </motion.div>
+        </section>
+      )}
     </div>
   );
 };
