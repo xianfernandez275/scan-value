@@ -1,6 +1,13 @@
 import { supabase } from '@/integrations/supabase/client';
 import type { IdentificationResult, OfficialImage } from './identifyCollectible';
 
+async function getCurrentUserId(): Promise<string> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('No autenticado');
+  return user.id;
+}
+import type { IdentificationResult, OfficialImage } from './identifyCollectible';
+
 export interface CollectionItem {
   id: string;
   created_at: string;
