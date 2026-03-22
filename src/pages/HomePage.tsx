@@ -5,6 +5,7 @@ import heroImage from "@/assets/hero-collectibles.jpg";
 import { categories } from "@/lib/mockData";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
+import logoIcon from "@/assets/logo-icon.png";
 
 const features = [
   { icon: Camera, title: "Escaneo IA", desc: "Fotografía tu artículo y la IA lo identifica al instante" },
@@ -47,6 +48,7 @@ const HomePage = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
           >
+            <img src={logoIcon} alt="ColecScan" className="mx-auto mb-4 h-16 w-16 drop-shadow-lg" />
             <h1 className="font-serif text-5xl font-bold tracking-tight md:text-7xl">
               Colec<span className="text-primary">Scan</span>
             </h1>
