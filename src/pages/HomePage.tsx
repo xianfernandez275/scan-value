@@ -1,9 +1,10 @@
 import { motion } from "framer-motion";
-import { Camera, Search, Sparkles, TrendingUp, Shield, Zap } from "lucide-react";
+import { Camera, Search, Sparkles, TrendingUp, Shield, Zap, Crown } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import heroImage from "@/assets/hero-collectibles.jpg";
 import { categories } from "@/lib/mockData";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/AuthContext";
 
 const features = [
   { icon: Camera, title: "Escaneo IA", desc: "Fotografía tu artículo y la IA lo identifica al instante" },
