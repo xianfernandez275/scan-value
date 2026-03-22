@@ -4,7 +4,7 @@
  * Consistent sizing, glassmorphism style, and click-to-info support.
  */
 
-import { useState } from "react";
+import { forwardRef, useState } from "react";
 import { ExternalLink } from "lucide-react";
 import {
   Tooltip,
@@ -29,7 +29,6 @@ const sourceIcons: Record<string, { label: string; url: string; icon: JSX.Elemen
     url: "https://pokeapi.co",
     icon: (
       <g>
-        {/* Pokéball shape */}
         <circle cx="50" cy="50" r="30" fill="none" stroke="currentColor" strokeWidth="2.5" />
         <line x1="20" y1="50" x2="80" y2="50" stroke="currentColor" strokeWidth="2.5" />
         <circle cx="50" cy="50" r="8" fill="currentColor" opacity="0.3" stroke="currentColor" strokeWidth="2" />
@@ -54,7 +53,6 @@ const sourceIcons: Record<string, { label: string; url: string; icon: JSX.Elemen
     url: "https://comicvine.gamespot.com",
     icon: (
       <g>
-        {/* Speech bubble / comic icon */}
         <rect x="25" y="22" width="50" height="40" rx="6" fill="currentColor" opacity="0.15" stroke="currentColor" strokeWidth="2.5" />
         <polygon points="35,62 40,72 48,62" fill="currentColor" opacity="0.25" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
         <text x="50" y="48" textAnchor="middle" fontSize="16" fill="currentColor" opacity="0.7" fontWeight="bold" fontFamily="sans-serif">CV</text>
@@ -66,7 +64,6 @@ const sourceIcons: Record<string, { label: string; url: string; icon: JSX.Elemen
     url: "https://en.numista.com",
     icon: (
       <g>
-        {/* Coin with N */}
         <circle cx="50" cy="50" r="28" fill="currentColor" opacity="0.1" stroke="currentColor" strokeWidth="2.5" />
         <circle cx="50" cy="50" r="22" fill="none" stroke="currentColor" strokeWidth="1.5" opacity="0.35" />
         <text x="50" y="57" textAnchor="middle" fontSize="22" fill="currentColor" opacity="0.6" fontFamily="serif" fontWeight="bold">N</text>
@@ -78,7 +75,6 @@ const sourceIcons: Record<string, { label: string; url: string; icon: JSX.Elemen
     url: "https://scryfall.com",
     icon: (
       <g>
-        {/* Magic card / scroll icon */}
         <rect x="30" y="20" width="40" height="60" rx="4" fill="currentColor" opacity="0.12" stroke="currentColor" strokeWidth="2.5" />
         <circle cx="50" cy="44" r="10" fill="currentColor" opacity="0.2" stroke="currentColor" strokeWidth="1.5" />
         <path d="M46 44 l4 4 l6-8" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" opacity="0.6" />
@@ -191,72 +187,69 @@ function resolveSourceKey(source?: string): string | null {
 
 /* ── Component ────────────────────────────────────────────────── */
 
-const CategoryPlaceholder = ({
-  category,
-  className = "",
-  source,
-  sourceUrl,
-  itemName,
-}: CategoryPlaceholderProps) => {
-  const [showInfo, setShowInfo] = useState(false);
-  const sourceKey = resolveSourceKey(source);
-  const sourceData = sourceKey ? sourceIcons[sourceKey] : null;
-  const catData = categoryIcons[category] || defaultCategory;
+const CategoryPlaceholder = forwardRef<HTMLDivElement, CategoryPlaceholderProps>(
+  ({ category, className = "", source, sourceUrl, itemName }, ref) => {
+    const [showInfo, setShowInfo] = useState(false);
+    const sourceKey = resolveSourceKey(source);
+    const sourceData = sourceKey ? sourceIcons[sourceKey] : null;
+    const catData = categoryIcons[category] || defaultCategory;
 
-  const gradient = catData.gradient;
-  const svgIcon = sourceData ? sourceData.icon : catData.icon;
-  const label = sourceData?.label || category || "Coleccionable";
+    const gradient = catData.gradient;
+    const svgIcon = sourceData ? sourceData.icon : catData.icon;
+    const label = sourceData?.label || category || "Coleccionable";
 
-  const inner = (
-    <div
-      className={`relative flex flex-col items-center justify-center overflow-hidden rounded-lg cursor-pointer
-        border border-border/40 shadow-md transition-transform hover:scale-[1.02] ${className}`}
-      style={{ background: `linear-gradient(135deg, ${gradient[0]}, ${gradient[1]})` }}
-      onClick={() => setShowInfo(true)}
-    >
-      <svg viewBox="0 0 100 100" className="w-3/5 h-3/5 text-white/80 drop-shadow-sm">
-        {svgIcon}
-      </svg>
+    const inner = (
+      <div
+        ref={ref}
+        className={`relative flex flex-col items-center justify-center overflow-hidden rounded-lg cursor-pointer
+          border border-border/40 shadow-md transition-transform hover:scale-[1.02] ${className}`}
+        style={{ background: `linear-gradient(135deg, ${gradient[0]}, ${gradient[1]})` }}
+        onClick={() => setShowInfo(true)}
+      >
+        <svg viewBox="0 0 100 100" className="w-3/5 h-3/5 text-white/80 drop-shadow-sm">
+          {svgIcon}
+        </svg>
 
-      {/* Small source badge at bottom */}
-      {sourceData && (
-        <span className="absolute bottom-1 text-[8px] font-medium text-white/60 tracking-wide uppercase">
-          {sourceData.label}
-        </span>
-      )}
-    </div>
-  );
+        {sourceData && (
+          <span className="absolute bottom-1 text-[8px] font-medium text-white/60 tracking-wide uppercase">
+            {sourceData.label}
+          </span>
+        )}
+      </div>
+    );
 
-  // Wrap in tooltip with source info
-  return (
-    <TooltipProvider delayDuration={300}>
-      <Tooltip>
-        <TooltipTrigger asChild>{inner}</TooltipTrigger>
-        <TooltipContent side="bottom" className="max-w-[220px] space-y-1">
-          {itemName && <p className="font-semibold text-xs">{itemName}</p>}
-          <p className="text-xs text-muted-foreground">
-            Fuente: {label}
-          </p>
-          {(sourceUrl || sourceData?.url) && (
-            <a
-              href={sourceUrl || sourceData?.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs text-primary flex items-center gap-1 hover:underline"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <ExternalLink size={10} /> Ver fuente
-            </a>
-          )}
-          {!sourceData && (
-            <p className="text-[10px] text-muted-foreground italic">
-              Imagen oficial no disponible
+    return (
+      <TooltipProvider delayDuration={300}>
+        <Tooltip>
+          <TooltipTrigger asChild>{inner}</TooltipTrigger>
+          <TooltipContent side="bottom" className="max-w-[220px] space-y-1">
+            {itemName && <p className="font-semibold text-xs">{itemName}</p>}
+            <p className="text-xs text-muted-foreground">
+              Fuente: {label}
             </p>
-          )}
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
-  );
-};
+            {(sourceUrl || sourceData?.url) && (
+              <a
+                href={sourceUrl || sourceData?.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-primary flex items-center gap-1 hover:underline"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <ExternalLink size={10} /> Ver fuente
+              </a>
+            )}
+            {!sourceData && (
+              <p className="text-[10px] text-muted-foreground italic">
+                Imagen oficial no disponible
+              </p>
+            )}
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+  }
+);
+
+CategoryPlaceholder.displayName = "CategoryPlaceholder";
 
 export default CategoryPlaceholder;
