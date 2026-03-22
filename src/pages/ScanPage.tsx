@@ -14,6 +14,7 @@ const ScanPage = () => {
   const [scanning, setScanning] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
+  const { user, scansRemaining, isPremium, incrementScanCount } = useAuth();
 
   const handleFile = useCallback((file: File) => {
     const reader = new FileReader();
