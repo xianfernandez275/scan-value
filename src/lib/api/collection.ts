@@ -111,7 +111,7 @@ export async function updateItemNotes(id: string, notes: string): Promise<void> 
 export async function updateItemGrade(id: string, gradingCompany: string | null, gradingValue: string | null): Promise<void> {
   const { error } = await supabase
     .from('collection_items')
-    .update({ grading_company: gradingCompany, grading_value: gradingValue } as any)
+    .update({ grading_company: gradingCompany, grading_value: gradingValue })
     .eq('id', id);
   if (error) throw new Error(error.message);
 }

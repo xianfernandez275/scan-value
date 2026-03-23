@@ -137,15 +137,7 @@ const CollectionPage = () => {
                   onClick={() => setSelectedItem(item)}
                 >
                   {/* Official image thumbnail */}
-                  <div className="h-14 w-14 shrink-0 rounded-lg overflow-hidden bg-secondary">
-                    {item.official_image_url ? (
-                      <img src={item.official_image_url} alt={item.name} className="h-full w-full object-contain p-0.5" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden'); }} />
-                    ) : item.user_photo_url ? (
-                      <img src={item.user_photo_url} alt={item.name} className="h-full w-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden'); }} />
-                    ) : null}
-                    {/* Always-present fallback, hidden when image loads */}
-                    <CategoryPlaceholder category={item.category} className={`h-full w-full ${item.official_image_url || item.user_photo_url ? 'hidden' : ''}`} />
-                  </div>
+                  <CollectionThumbnail item={item} />
 
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold truncate text-sm">{item.name}</p>
