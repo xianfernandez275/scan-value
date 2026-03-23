@@ -12,6 +12,8 @@ import ScanResultModal from "@/components/ScanResultModal";
 const ScanPage = () => {
   const [image, setImage] = useState<string | null>(null);
   const [scanning, setScanning] = useState(false);
+  const [scanResult, setScanResult] = useState<IdentifyResponse | null>(null);
+  const [showResultModal, setShowResultModal] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
   const { user, scansRemaining, isPremium, incrementScanCount } = useAuth();
