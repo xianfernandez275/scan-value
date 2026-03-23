@@ -103,7 +103,6 @@ const ResultsPage = () => {
   const handleCoinManualSearch = async (query: string) => {
     setRefiningCoin(true);
     try {
-      const parts = query.split(/\s+/);
       const refined = await refineCoinIdentification(
         { denomination: query, originalName: id.name },
         { ...id, name: query },
