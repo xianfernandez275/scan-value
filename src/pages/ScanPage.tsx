@@ -52,8 +52,8 @@ const ScanPage = () => {
 
       if (result.success && result.identification) {
         await incrementScanCount();
-        setScanData(result, image);
-        navigate("/results");
+        setScanResult(result);
+        setShowResultModal(true);
       } else {
         toast.error("No se pudo identificar el artículo. Intenta con otra foto.");
       }
