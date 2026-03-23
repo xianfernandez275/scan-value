@@ -188,6 +188,21 @@ const ScanPage = () => {
           <li className="flex gap-2">📐 Captura la portada/cara frontal completa</li>
         </ul>
       </motion.div>
+
+      {/* Scan result modal */}
+      {scanResult && (
+        <ScanResultModal
+          open={showResultModal}
+          onClose={() => {
+            setShowResultModal(false);
+            setScanResult(null);
+            setImage(null);
+          }}
+          result={scanResult}
+          userPhoto={image}
+          onResultUpdate={(r) => setScanResult(r)}
+        />
+      )}
     </div>
   );
 };
