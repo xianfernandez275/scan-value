@@ -5,13 +5,15 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { identifyCollectible, type IdentifyResponse } from "@/lib/api/identifyCollectible";
-import { setScanData } from "@/lib/scanStore";
 import { useAuth } from "@/contexts/AuthContext";
 import UsageBanner from "@/components/UsageBanner";
+import ScanResultModal from "@/components/ScanResultModal";
 
 const ScanPage = () => {
   const [image, setImage] = useState<string | null>(null);
   const [scanning, setScanning] = useState(false);
+  const [scanResult, setScanResult] = useState<IdentifyResponse | null>(null);
+  const [showResultModal, setShowResultModal] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
   const { user, scansRemaining, isPremium, incrementScanCount } = useAuth();
@@ -50,8 +52,8 @@ const ScanPage = () => {
 
       if (result.success && result.identification) {
         await incrementScanCount();
-        setScanData(result, image);
-        navigate("/results");
+        setScanResult(result);
+        setShowResultModal(true);
       } else {
         toast.error("No se pudo identificar el artículo. Intenta con otra foto.");
       }
@@ -186,6 +188,21 @@ const ScanPage = () => {
           <li className="flex gap-2">📐 Captura la portada/cara frontal completa</li>
         </ul>
       </motion.div>
+
+      {/* Scan result modal */}
+      {scanResult && (
+        <ScanResultModal
+          open={showResultModal}
+          onClose={() => {
+            setShowResultModal(false);
+            setScanResult(null);
+            setImage(null);
+          }}
+          result={scanResult}
+          userPhoto={image}
+          onResultUpdate={(r) => setScanResult(r)}
+        />
+      )}
     </div>
   );
 };
