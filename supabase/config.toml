@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.identify-collectible]
 verify_jwt = false
+
+[functions.api-health-check]
+verify_jwt = false
