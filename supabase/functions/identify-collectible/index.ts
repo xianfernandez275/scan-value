@@ -30,6 +30,56 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
+// ─── Diagnostic Logger ──────────────────────────────────────────────────────
+
+function log(provider: string, message: string, data?: any) {
+  const ts = new Date().toISOString();
+  const extra = data !== undefined ? ` | ${JSON.stringify(data)}` : '';
+  console.log(`[${ts}][${provider}] ${message}${extra}`);
+}
+
+function logError(provider: string, message: string, error?: any) {
+  const ts = new Date().toISOString();
+  const errMsg = error instanceof Error ? error.message : String(error ?? '');
+  console.error(`[${ts}][${provider}] ❌ ${message} ${errMsg}`);
+}
+
+function logApiCall(provider: string, url: string, status: number, hasData: boolean, dataPreview?: string) {
+  const statusEmoji = status >= 200 && status < 300 ? '✅' : '⚠️';
+  log(provider, `${statusEmoji} ${status} ${url.substring(0, 120)}... | hasData=${hasData}${dataPreview ? ` | preview=${dataPreview.substring(0, 200)}` : ''}`);
+}
+
+// ─── API Key Checker ────────────────────────────────────────────────────────
+
+interface ApiKeyStatus {
+  name: string;
+  envVar: string;
+  configured: boolean;
+  required: boolean; // false = free API
+}
+
+function checkApiKeys(): ApiKeyStatus[] {
+  const keys: ApiKeyStatus[] = [
+    { name: 'Lovable AI', envVar: 'LOVABLE_API_KEY', configured: !!Deno.env.get('LOVABLE_API_KEY'), required: true },
+    { name: 'Comic Vine', envVar: 'COMIC_VINE_API_KEY', configured: !!Deno.env.get('COMIC_VINE_API_KEY'), required: true },
+    { name: 'Numista', envVar: 'NUMISTA_API_KEY', configured: !!Deno.env.get('NUMISTA_API_KEY'), required: true },
+    { name: 'Discogs', envVar: 'DISCOGS_TOKEN', configured: !!Deno.env.get('DISCOGS_TOKEN'), required: true },
+    { name: 'Pokémon TCG', envVar: '(none - free)', configured: true, required: false },
+    { name: 'Scryfall', envVar: '(none - free)', configured: true, required: false },
+    { name: 'YGOPRODeck', envVar: '(none - free)', configured: true, required: false },
+  ];
+
+  for (const key of keys) {
+    if (!key.configured && key.required) {
+      console.error(`🔑 API key missing: ${key.name} (env: ${key.envVar})`);
+    } else {
+      log('keys', `✅ ${key.name}: configured`);
+    }
+  }
+
+  return keys;
+}
+
 // ─── Unified Types ──────────────────────────────────────────────────────────
 
 interface NormalizedItem {
@@ -84,6 +134,40 @@ interface CoinRefinement {
   originalName?: string;
 }
 
+// ─── Robust Fetch ───────────────────────────────────────────────────────────
+
+async function robustFetch(provider: string, url: string, options: RequestInit = {}, timeoutMs = 8000): Promise<{ ok: boolean; status: number; data: any }> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  
+  try {
+    log(provider, `→ FETCH ${url.substring(0, 150)}`);
+    const res = await fetch(url, { ...options, signal: controller.signal });
+    clearTimeout(timeout);
+    
+    const text = await res.text();
+    let data: any = null;
+    try { data = JSON.parse(text); } catch { data = text; }
+    
+    logApiCall(provider, url, res.status, !!data, typeof data === 'string' ? data : JSON.stringify(data).substring(0, 200));
+    
+    if (!res.ok) {
+      logError(provider, `HTTP ${res.status} from ${url.substring(0, 80)}`, typeof data === 'string' ? data : JSON.stringify(data).substring(0, 300));
+      return { ok: false, status: res.status, data };
+    }
+    
+    return { ok: true, status: res.status, data };
+  } catch (e: any) {
+    clearTimeout(timeout);
+    if (e.name === 'AbortError') {
+      logError(provider, `TIMEOUT (${timeoutMs}ms) for ${url.substring(0, 80)}`);
+      return { ok: false, status: 0, data: null };
+    }
+    logError(provider, `NETWORK ERROR for ${url.substring(0, 80)}`, e);
+    return { ok: false, status: 0, data: null };
+  }
+}
+
 // ─── Category Normalization ─────────────────────────────────────────────────
 
 const CANONICAL_CATEGORIES: Record<string, string[]> = {
@@ -105,13 +189,13 @@ function normalizeCategory(raw: string): string {
   for (const [canonical, aliases] of Object.entries(CANONICAL_CATEGORIES)) {
     for (const alias of aliases) {
       if (cleaned === alias || cleaned.includes(alias)) {
+        log('normalize', `"${raw}" → "${canonical}" (matched alias: "${alias}")`);
         return canonical;
       }
     }
   }
-  // If already a canonical category, return as-is
   if (Object.keys(CANONICAL_CATEGORIES).includes(raw)) return raw;
-  console.log(`[normalize] Unknown category "${raw}", defaulting to "Otro"`);
+  log('normalize', `⚠️ Unknown category "${raw}" → defaulting to "Otro"`);
   return 'Otro';
 }
 
@@ -120,10 +204,11 @@ function normalizeCategory(raw: string): string {
 function matchesSubcategory(subcategory: string, ...patterns: string[]): boolean {
   if (!subcategory) return false;
   const cleaned = removeAccents(subcategory.trim().toLowerCase()).replace(/[\s\-_]+/g, '');
-  return patterns.some(p => {
+  const matched = patterns.some(p => {
     const cleanPattern = removeAccents(p.toLowerCase()).replace(/[\s\-_]+/g, '');
     return cleaned.includes(cleanPattern);
   });
+  return matched;
 }
 
 // ─── Provider Interface ─────────────────────────────────────────────────────
@@ -131,6 +216,7 @@ function matchesSubcategory(subcategory: string, ...patterns: string[]): boolean
 interface CollectibleProvider {
   name: string;
   categories: string[];
+  requiresApiKey?: string; // env var name, if required
   fetchItem(id: Identification, refinement?: CoinRefinement): Promise<ProviderResult>;
 }
 
@@ -170,7 +256,10 @@ const pokemonTCGProvider: CollectibleProvider = {
   name: 'pokemon-tcg',
   categories: ['Cartas'],
   async fetchItem(id: Identification): Promise<ProviderResult> {
+    log('pokemon-tcg', `Starting | subcategory="${id.subcategory}" | name="${id.name}" | tcg_set_id="${id.tcg_set_id}" | card_number="${id.card_number}"`);
+    
     if (!matchesSubcategory(id.subcategory, 'pokémon', 'pokemon') && id.subcategory) {
+      log('pokemon-tcg', `Skipping — subcategory "${id.subcategory}" doesn't match Pokémon`);
       return { exactMatch: null, candidates: [] };
     }
 
@@ -178,57 +267,69 @@ const pokemonTCGProvider: CollectibleProvider = {
     let candidates: NormalizedItem[] = [];
 
     try {
+      // Strategy 1: Exact set+number
       if (id.tcg_set_id && id.card_number) {
         const q = `set.id:${id.tcg_set_id} number:${id.card_number}`;
-        console.log('[pokemon-tcg] exact query:', q);
-        const res = await fetch(`https://api.pokemontcg.io/v2/cards?q=${encodeURIComponent(q)}&pageSize=1`);
-        if (res.ok) {
-          const data = await res.json();
-          if (data.data?.length > 0) {
-            exactMatch = pokemonCardToNormalized(data.data[0]);
-            return { exactMatch, candidates: [] };
-          }
+        const url = `https://api.pokemontcg.io/v2/cards?q=${encodeURIComponent(q)}&pageSize=1`;
+        const { ok, data } = await robustFetch('pokemon-tcg', url);
+        if (ok && data?.data?.length > 0) {
+          exactMatch = pokemonCardToNormalized(data.data[0]);
+          log('pokemon-tcg', `✅ Exact match by set+number: ${exactMatch.externalId}`);
+          return { exactMatch, candidates: [] };
         }
+        log('pokemon-tcg', `No exact match for set+number query`);
       }
 
+      // Strategy 2: Set + name
       if (id.tcg_set_id) {
         const pokemonName = id.name.split(/[\s\-–]/)[0];
         const q = `set.id:${id.tcg_set_id} name:"${pokemonName}"`;
-        console.log('[pokemon-tcg] set+name query:', q);
-        const res = await fetch(`https://api.pokemontcg.io/v2/cards?q=${encodeURIComponent(q)}&pageSize=5`);
-        if (res.ok) {
-          const data = await res.json();
-          if (data.data?.length === 1) return { exactMatch: pokemonCardToNormalized(data.data[0]), candidates: [] };
-          if (data.data?.length > 1) {
-            candidates = data.data.map(pokemonCardToNormalized);
-            const byNumber = data.data.find((c: any) => c.number === id.card_number);
-            if (byNumber) return { exactMatch: pokemonCardToNormalized(byNumber), candidates: [] };
+        const url = `https://api.pokemontcg.io/v2/cards?q=${encodeURIComponent(q)}&pageSize=5`;
+        const { ok, data } = await robustFetch('pokemon-tcg', url);
+        if (ok && data?.data?.length > 0) {
+          if (data.data.length === 1) {
+            exactMatch = pokemonCardToNormalized(data.data[0]);
+            log('pokemon-tcg', `✅ Single match by set+name: ${exactMatch.externalId}`);
+            return { exactMatch, candidates: [] };
           }
+          candidates = data.data.map(pokemonCardToNormalized);
+          const byNumber = data.data.find((c: any) => c.number === id.card_number);
+          if (byNumber) {
+            exactMatch = pokemonCardToNormalized(byNumber);
+            log('pokemon-tcg', `✅ Match by number within set+name results: ${exactMatch.externalId}`);
+            return { exactMatch, candidates: [] };
+          }
+          log('pokemon-tcg', `Found ${candidates.length} candidates by set+name`);
         }
       }
 
+      // Strategy 3: Broad name search
       if (!exactMatch && candidates.length === 0) {
         const pokemonName = id.name.split(/[\s\-–]/)[0];
         const q = `name:"${pokemonName}"`;
-        console.log('[pokemon-tcg] broad query:', q);
-        const res = await fetch(`https://api.pokemontcg.io/v2/cards?q=${encodeURIComponent(q)}&pageSize=10&orderBy=-set.releaseDate`);
-        if (res.ok) {
-          const data = await res.json();
-          candidates = (data.data || []).map(pokemonCardToNormalized);
+        const url = `https://api.pokemontcg.io/v2/cards?q=${encodeURIComponent(q)}&pageSize=10&orderBy=-set.releaseDate`;
+        const { ok, data } = await robustFetch('pokemon-tcg', url);
+        if (ok && data?.data?.length > 0) {
+          candidates = data.data.map(pokemonCardToNormalized);
+          log('pokemon-tcg', `Found ${candidates.length} candidates by broad name search`);
           const catalogNum = id.catalog_id?.split('/')?.[0]?.trim();
           if (catalogNum) {
-            const byNum = data.data?.find((c: any) => c.number === catalogNum);
+            const byNum = data.data.find((c: any) => c.number === catalogNum);
             if (byNum) {
               exactMatch = pokemonCardToNormalized(byNum);
+              log('pokemon-tcg', `✅ Match by catalog number: ${exactMatch.externalId}`);
               return { exactMatch, candidates };
             }
           }
+        } else {
+          log('pokemon-tcg', `No results from broad name search for "${pokemonName}"`);
         }
       }
     } catch (e) {
-      console.error('[pokemon-tcg] error:', e);
+      logError('pokemon-tcg', 'Unhandled error', e);
     }
 
+    log('pokemon-tcg', `Final: exactMatch=${!!exactMatch}, candidates=${candidates.length}`);
     return { exactMatch, candidates };
   }
 };
@@ -241,18 +342,24 @@ const yugiohProvider: CollectibleProvider = {
   name: 'yugioh',
   categories: ['Cartas'],
   async fetchItem(id: Identification): Promise<ProviderResult> {
+    log('yugioh', `Starting | subcategory="${id.subcategory}" | name="${id.name}"`);
+    
     if (!matchesSubcategory(id.subcategory, 'yu-gi-oh', 'yugioh', 'yu gi oh')) {
+      log('yugioh', `Skipping — subcategory "${id.subcategory}" doesn't match Yu-Gi-Oh!`);
       return { exactMatch: null, candidates: [] };
     }
 
     try {
       const cardName = id.name.split(/[\-–·]/)[0].trim();
-      console.log('[yugioh] searching:', cardName);
-      const res = await fetch(`https://db.ygoprodeck.com/api/v7/cardinfo.php?fname=${encodeURIComponent(cardName)}&num=5&offset=0`);
-      if (!res.ok) return { exactMatch: null, candidates: [] };
-      const data = await res.json();
-      const cards = data.data || [];
-      if (cards.length === 0) return { exactMatch: null, candidates: [] };
+      const url = `https://db.ygoprodeck.com/api/v7/cardinfo.php?fname=${encodeURIComponent(cardName)}&num=5&offset=0`;
+      const { ok, data } = await robustFetch('yugioh', url);
+      if (!ok || !data?.data?.length) {
+        log('yugioh', `No results for "${cardName}"`);
+        return { exactMatch: null, candidates: [] };
+      }
+
+      const cards = data.data;
+      log('yugioh', `Found ${cards.length} results`);
 
       const normalized = cards.map((card: any): NormalizedItem => ({
         imageUrl: card.card_images?.[0]?.image_url || '',
@@ -275,7 +382,7 @@ const yugiohProvider: CollectibleProvider = {
         candidates: normalized.length > 1 ? normalized : [],
       };
     } catch (e) {
-      console.error('[yugioh] error:', e);
+      logError('yugioh', 'Unhandled error', e);
       return { exactMatch: null, candidates: [] };
     }
   }
@@ -289,17 +396,24 @@ const mtgProvider: CollectibleProvider = {
   name: 'mtg-scryfall',
   categories: ['Cartas'],
   async fetchItem(id: Identification): Promise<ProviderResult> {
+    log('mtg-scryfall', `Starting | subcategory="${id.subcategory}" | name="${id.name}"`);
+    
     if (!matchesSubcategory(id.subcategory, 'magic', 'mtg', 'the gathering')) {
+      log('mtg-scryfall', `Skipping — subcategory "${id.subcategory}" doesn't match MTG`);
       return { exactMatch: null, candidates: [] };
     }
 
     try {
       const cardName = id.name.split(/[\-–·]/)[0].trim();
-      console.log('[mtg] searching:', cardName);
-      const res = await fetch(`https://api.scryfall.com/cards/search?q=${encodeURIComponent(cardName)}&unique=prints&order=released&dir=desc`);
-      if (!res.ok) return { exactMatch: null, candidates: [] };
-      const data = await res.json();
+      const url = `https://api.scryfall.com/cards/search?q=${encodeURIComponent(cardName)}&unique=prints&order=released&dir=desc`;
+      const { ok, data } = await robustFetch('mtg-scryfall', url);
+      if (!ok || !data?.data?.length) {
+        log('mtg-scryfall', `No results for "${cardName}"`);
+        return { exactMatch: null, candidates: [] };
+      }
+
       const cards = (data.data || []).slice(0, 8);
+      log('mtg-scryfall', `Found ${cards.length} results`);
 
       const normalized = cards.map((card: any): NormalizedItem => ({
         imageUrl: card.image_uris?.large || card.image_uris?.normal || (card.card_faces?.[0]?.image_uris?.large) || '',
@@ -322,7 +436,10 @@ const mtgProvider: CollectibleProvider = {
         const setMatch = normalized.find((c: NormalizedItem) =>
           c.setName.toLowerCase().includes(id.set_or_edition.toLowerCase())
         );
-        if (setMatch) return { exactMatch: setMatch, candidates: normalized };
+        if (setMatch) {
+          log('mtg-scryfall', `✅ Set match: ${setMatch.externalId}`);
+          return { exactMatch: setMatch, candidates: normalized };
+        }
       }
 
       return {
@@ -330,7 +447,7 @@ const mtgProvider: CollectibleProvider = {
         candidates: normalized,
       };
     } catch (e) {
-      console.error('[mtg] error:', e);
+      logError('mtg-scryfall', 'Unhandled error', e);
       return { exactMatch: null, candidates: [] };
     }
   }
@@ -341,21 +458,24 @@ const mtgProvider: CollectibleProvider = {
 const comicVineProvider: CollectibleProvider = {
   name: 'comic-vine',
   categories: ['Cómics'],
+  requiresApiKey: 'COMIC_VINE_API_KEY',
   async fetchItem(id: Identification): Promise<ProviderResult> {
     const apiKey = Deno.env.get('COMIC_VINE_API_KEY');
     if (!apiKey) {
-      console.log('[comic-vine] No API key configured, skipping');
+      logError('comic-vine', '🔑 API key missing: COMIC_VINE_API_KEY — Cannot search comics. Set this secret to enable Comic Vine.');
       return { exactMatch: null, candidates: [] };
     }
 
     try {
-      const res = await fetch(
-        `https://comicvine.gamespot.com/api/search/?api_key=${apiKey}&format=json&query=${encodeURIComponent(id.name)}&resources=issue&limit=5&field_list=id,name,image,site_detail_url,issue_number,volume,cover_date`,
-        { headers: { 'User-Agent': 'ColecScan/1.0' } }
-      );
-      if (!res.ok) return { exactMatch: null, candidates: [] };
-      const data = await res.json();
-      const issues = data.results || [];
+      const url = `https://comicvine.gamespot.com/api/search/?api_key=${apiKey}&format=json&query=${encodeURIComponent(id.name)}&resources=issue&limit=5&field_list=id,name,image,site_detail_url,issue_number,volume,cover_date`;
+      const { ok, data } = await robustFetch('comic-vine', url, { headers: { 'User-Agent': 'ColecScan/1.0' } });
+      if (!ok || !data?.results?.length) {
+        log('comic-vine', `No results for "${id.name}"`);
+        return { exactMatch: null, candidates: [] };
+      }
+
+      const issues = data.results;
+      log('comic-vine', `Found ${issues.length} results`);
 
       const normalized = issues.map((issue: any): NormalizedItem => ({
         imageUrl: issue.image?.medium_url || issue.image?.small_url || '',
@@ -373,7 +493,7 @@ const comicVineProvider: CollectibleProvider = {
         candidates: normalized.length > 1 ? normalized : [],
       };
     } catch (e) {
-      console.error('[comic-vine] error:', e);
+      logError('comic-vine', 'Unhandled error', e);
       return { exactMatch: null, candidates: [] };
     }
   }
@@ -418,25 +538,30 @@ function buildCoinQuery(id: Identification, refinement?: CoinRefinement): string
 const numistaProvider: CollectibleProvider = {
   name: 'numista',
   categories: ['Monedas'],
+  requiresApiKey: 'NUMISTA_API_KEY',
   async fetchItem(id: Identification, refinement?: CoinRefinement): Promise<ProviderResult> {
     const apiKey = Deno.env.get('NUMISTA_API_KEY');
     if (!apiKey) {
-      console.log('[numista] No API key configured, skipping');
+      logError('numista', '🔑 API key missing: NUMISTA_API_KEY — Cannot search coins. Set this secret to enable Numista.');
       return { exactMatch: null, candidates: [] };
     }
 
     try {
       const query = buildCoinQuery(id, refinement);
-      console.log('[numista] searching:', query);
+      log('numista', `Searching: "${query}"`);
 
-      const res = await fetch(
-        `https://api.numista.com/api/v3/coins?q=${encodeURIComponent(query)}&count=10`,
-        { headers: { 'Numista-API-Key': apiKey, 'Accept': 'application/json' } }
-      );
-      if (!res.ok) return { exactMatch: null, candidates: [] };
-      const data = await res.json();
-      const coins = data.coins || [];
+      const url = `https://api.numista.com/api/v3/coins?q=${encodeURIComponent(query)}&count=10`;
+      const { ok, data } = await robustFetch('numista', url, {
+        headers: { 'Numista-API-Key': apiKey, 'Accept': 'application/json' },
+      });
 
+      if (!ok || !data?.coins?.length) {
+        log('numista', `No results for "${query}"`);
+        return { exactMatch: null, candidates: [] };
+      }
+
+      const coins = data.coins;
+      log('numista', `Found ${coins.length} results`);
       const faceField = refinement?.face === 'reverse' ? 'reverse' : 'obverse';
 
       const normalized = coins.map((coin: any): NormalizedItem => ({
@@ -468,7 +593,7 @@ const numistaProvider: CollectibleProvider = {
 
       return { exactMatch: null, candidates: normalized };
     } catch (e) {
-      console.error('[numista] error:', e);
+      logError('numista', 'Unhandled error', e);
       return { exactMatch: null, candidates: [] };
     }
   }
@@ -480,9 +605,7 @@ const toysProvider: CollectibleProvider = {
   name: 'toys-figures',
   categories: ['Juguetes', 'Figuras'],
   async fetchItem(id: Identification): Promise<ProviderResult> {
-    // Try a generic search approach for toys using name
-    console.log('[toys-figures] metadata-only mode for:', id.name);
-    // Return a structured fallback with the item name so the UI can at least show something
+    log('toys-figures', `metadata-only mode for: "${id.name}" — no external API available for this category`);
     return { exactMatch: null, candidates: [] };
   }
 };
@@ -493,7 +616,7 @@ const stampsProvider: CollectibleProvider = {
   name: 'stamps',
   categories: ['Sellos'],
   async fetchItem(id: Identification): Promise<ProviderResult> {
-    console.log('[stamps] metadata-only mode for:', id.name);
+    log('stamps', `metadata-only mode for: "${id.name}" — no external API available for this category`);
     return { exactMatch: null, candidates: [] };
   }
 };
@@ -503,21 +626,26 @@ const stampsProvider: CollectibleProvider = {
 const vinylProvider: CollectibleProvider = {
   name: 'discogs',
   categories: ['Vinilos'],
+  requiresApiKey: 'DISCOGS_TOKEN',
   async fetchItem(id: Identification): Promise<ProviderResult> {
     const token = Deno.env.get('DISCOGS_TOKEN');
     if (!token) {
-      console.log('[discogs] No API token configured, skipping');
+      logError('discogs', '🔑 API key missing: DISCOGS_TOKEN — Cannot search vinyl records. Set this secret to enable Discogs.');
       return { exactMatch: null, candidates: [] };
     }
 
     try {
-      const res = await fetch(
-        `https://api.discogs.com/database/search?q=${encodeURIComponent(id.name)}&type=release&per_page=5`,
-        { headers: { 'Authorization': `Discogs token=${token}`, 'User-Agent': 'ColecScan/1.0' } }
-      );
-      if (!res.ok) return { exactMatch: null, candidates: [] };
-      const data = await res.json();
-      const releases = data.results || [];
+      const url = `https://api.discogs.com/database/search?q=${encodeURIComponent(id.name)}&type=release&per_page=5`;
+      const { ok, data } = await robustFetch('discogs', url, {
+        headers: { 'Authorization': `Discogs token=${token}`, 'User-Agent': 'ColecScan/1.0' },
+      });
+      if (!ok || !data?.results?.length) {
+        log('discogs', `No results for "${id.name}"`);
+        return { exactMatch: null, candidates: [] };
+      }
+
+      const releases = data.results;
+      log('discogs', `Found ${releases.length} results`);
 
       const normalized = releases.map((r: any): NormalizedItem => ({
         imageUrl: r.cover_image || r.thumb || '',
@@ -535,7 +663,7 @@ const vinylProvider: CollectibleProvider = {
         candidates: normalized.length > 1 ? normalized : [],
       };
     } catch (e) {
-      console.error('[discogs] error:', e);
+      logError('discogs', 'Unhandled error', e);
       return { exactMatch: null, candidates: [] };
     }
   }
@@ -562,6 +690,8 @@ function getProvidersForCategory(category: string): CollectibleProvider[] {
 // ─── AI Identification ──────────────────────────────────────────────────────
 
 async function identifyWithAI(base64Data: string, apiKey: string): Promise<Identification> {
+  log('ai', 'Starting AI identification...');
+  
   const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -636,20 +766,32 @@ IMPORTANT: For the "category" field, you MUST use one of these exact values:
 
   if (!response.ok) {
     const status = response.status;
+    const text = await response.text();
+    logError('ai', `AI gateway responded with HTTP ${status}`, text);
     if (status === 429) throw new Error('RATE_LIMIT');
     if (status === 402) throw new Error('CREDITS_EXHAUSTED');
-    const text = await response.text();
-    console.error('AI gateway error:', status, text);
     throw new Error(`AI gateway error: ${status}`);
   }
 
   const data = await response.json();
   const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
-  if (!toolCall?.function?.arguments) throw new Error('No structured response from AI');
+  if (!toolCall?.function?.arguments) {
+    logError('ai', 'No structured response from AI', JSON.stringify(data).substring(0, 500));
+    throw new Error('No structured response from AI');
+  }
 
   const parsed = JSON.parse(toolCall.function.arguments);
-  // Normalize the category from the AI response
   parsed.category = normalizeCategory(parsed.category);
+  
+  log('ai', `✅ AI identification complete`, {
+    name: parsed.name,
+    category: parsed.category,
+    subcategory: parsed.subcategory,
+    confidence: parsed.confidence,
+    tcg_set_id: parsed.tcg_set_id,
+    card_number: parsed.card_number,
+  });
+  
   return parsed;
 }
 
@@ -659,39 +801,60 @@ async function fetchOfficialData(identification: Identification, refinement?: Co
   const normalizedCategory = normalizeCategory(identification.category);
   const providers = ALL_PROVIDERS.filter(p => p.categories.includes(normalizedCategory));
 
+  log('middleware', `═══════════════════════════════════════════════`);
+  log('middleware', `Category: "${identification.category}" → normalized: "${normalizedCategory}"`);
+  log('middleware', `Subcategory: "${identification.subcategory}"`);
+  log('middleware', `Available providers: ${providers.length > 0 ? providers.map(p => p.name).join(', ') : 'NONE ⚠️'}`);
+
   if (providers.length === 0) {
-    console.log(`[middleware] No providers for category: ${identification.category} (normalized: ${normalizedCategory})`);
+    logError('middleware', `No providers registered for category "${normalizedCategory}". Available categories: ${[...new Set(ALL_PROVIDERS.flatMap(p => p.categories))].join(', ')}`);
     return { exactMatch: null, candidates: [] };
   }
 
-  console.log(`[middleware] Category "${identification.category}" → ${normalizedCategory} → ${providers.length} provider(s): ${providers.map(p => p.name).join(', ')}`);
+  // Check which providers have their API keys
+  for (const p of providers) {
+    if (p.requiresApiKey) {
+      const hasKey = !!Deno.env.get(p.requiresApiKey);
+      if (!hasKey) {
+        logError('middleware', `Provider "${p.name}" requires ${p.requiresApiKey} but it's NOT configured`);
+      }
+    }
+  }
 
   let allCandidates: NormalizedItem[] = [];
 
   for (const provider of providers) {
-    console.log(`[middleware] Trying provider: ${provider.name}`);
+    log('middleware', `──── Trying provider: ${provider.name} ────`);
     try {
       const result = await provider.fetchItem(identification, refinement);
 
       if (result.exactMatch) {
-        // Ensure image URL is not empty
         if (result.exactMatch.imageUrl) {
-          console.log(`[middleware] Exact match from ${provider.name}: ${result.exactMatch.externalId}`);
+          log('middleware', `✅ Exact match from ${provider.name}: "${result.exactMatch.name}" (id: ${result.exactMatch.externalId})`);
           return result;
         } else {
-          console.log(`[middleware] Exact match from ${provider.name} has no image, treating as candidate`);
+          log('middleware', `⚠️ Exact match from ${provider.name} has EMPTY imageUrl, treating as candidate`);
           allCandidates.push(result.exactMatch);
         }
+      } else {
+        log('middleware', `No exact match from ${provider.name}`);
       }
 
-      // Filter out candidates with empty image URLs
       const validCandidates = result.candidates.filter(c => c.imageUrl);
+      const invalidCount = result.candidates.length - validCandidates.length;
+      if (invalidCount > 0) {
+        log('middleware', `⚠️ Filtered out ${invalidCount} candidates with empty imageUrl`);
+      }
+      if (validCandidates.length > 0) {
+        log('middleware', `${validCandidates.length} valid candidates from ${provider.name}`);
+      }
       allCandidates = [...allCandidates, ...validCandidates];
     } catch (e) {
-      console.error(`[middleware] Error from provider ${provider.name}:`, e);
+      logError('middleware', `Error from provider ${provider.name}`, e);
     }
   }
 
+  log('middleware', `═══ Final: exactMatch=null, candidates=${allCandidates.length} ═══`);
   return { exactMatch: null, candidates: allCandidates };
 }
 
@@ -726,7 +889,7 @@ function buildResponse(
     name: c.name,
   }));
 
-  return {
+  const response = {
     success: true,
     identification,
     officialImage,
@@ -735,6 +898,9 @@ function buildResponse(
     provider: exactMatch?.source || candidates[0]?.source || null,
     marketData: exactMatch?.marketData || null,
   };
+
+  log('response', `Built response: officialImage=${!!officialImage}, candidates=${candidatesLegacy.length}, needsConfirmation=${needsConfirmation}, provider=${response.provider}`);
+  return response;
 }
 
 // ─── Main Handler ───────────────────────────────────────────────────────────
@@ -745,6 +911,16 @@ Deno.serve(async (req) => {
   }
 
   try {
+    log('main', '═══════════════════════════════════════════════');
+    log('main', 'New request received');
+    
+    // Check all API keys on every request
+    const keyStatus = checkApiKeys();
+    const missingKeys = keyStatus.filter(k => !k.configured && k.required);
+    if (missingKeys.length > 0) {
+      log('main', `⚠️ ${missingKeys.length} API key(s) missing: ${missingKeys.map(k => k.envVar).join(', ')}. Some providers will be unavailable.`);
+    }
+    
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY is not configured');
 
@@ -753,14 +929,13 @@ Deno.serve(async (req) => {
 
     // ─── Mode 2: Coin refinement (no image needed) ─────────────────────
     if (coinRefinement && existingId) {
-      console.log(`[main] Coin refinement: country=${coinRefinement.country}, year=${coinRefinement.year}, denomination=${coinRefinement.denomination}`);
+      log('main', `Mode: Coin refinement | country=${coinRefinement.country}, year=${coinRefinement.year}, denomination=${coinRefinement.denomination}`);
 
       const refined: Identification = { ...existingId };
       refined.category = normalizeCategory(refined.category);
       if (coinRefinement.year) refined.year = parseInt(coinRefinement.year);
       if (coinRefinement.denomination) refined.name = `${coinRefinement.denomination} ${coinRefinement.country || ''}`.trim();
 
-      // Pass refinement as parameter instead of global variable
       const { exactMatch, candidates } = await fetchOfficialData(refined, coinRefinement);
       const response = buildResponse(refined, exactMatch, candidates);
 
@@ -771,11 +946,13 @@ Deno.serve(async (req) => {
 
     // ─── Mode 1: Image identification ──────────────────────────────────
     if (!imageBase64) {
+      logError('main', 'No imageBase64 provided');
       return new Response(JSON.stringify({ error: 'imageBase64 is required' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
+    log('main', `Mode: Image identification | imageBase64 length: ${imageBase64.length}`);
     const base64Data = imageBase64.replace(/^data:image\/[a-z]+;base64,/, '');
 
     let identification: Identification;
@@ -795,16 +972,17 @@ Deno.serve(async (req) => {
       throw e;
     }
 
-    console.log(`[main] Identified: "${identification.name}" | Category: ${identification.category} | Subcategory: ${identification.subcategory} | Confidence: ${identification.confidence}`);
+    log('main', `AI Result → Name: "${identification.name}" | Category: "${identification.category}" | Subcategory: "${identification.subcategory}" | Confidence: ${identification.confidence}`);
 
     const { exactMatch, candidates } = await fetchOfficialData(identification);
     const response = buildResponse(identification, exactMatch, candidates);
 
+    log('main', `✅ Request complete. Provider: ${response.provider || 'none'}, hasImage: ${!!response.officialImage}`);
     return new Response(JSON.stringify(response), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {
-    console.error('Identification error:', error);
+    logError('main', 'Unhandled error', error);
     return new Response(JSON.stringify({
       error: error instanceof Error ? error.message : 'Unknown error',
     }), {
