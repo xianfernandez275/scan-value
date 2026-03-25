@@ -44,9 +44,32 @@ function logError(provider: string, message: string, error?: any) {
   console.error(`[${ts}][${provider}] ❌ ${message} ${errMsg}`);
 }
 
-function logApiCall(provider: string, url: string, status: number, hasData: boolean, dataPreview?: string) {
+function logApiCall(provider: string, url: string, status: number, resultCount: number, hasData: boolean, dataPreview?: string) {
   const statusEmoji = status >= 200 && status < 300 ? '✅' : '⚠️';
-  log(provider, `${statusEmoji} ${status} ${url.substring(0, 120)}... | hasData=${hasData}${dataPreview ? ` | preview=${dataPreview.substring(0, 200)}` : ''}`);
+  log(provider, `${statusEmoji} status=${status} | results=${resultCount} | url=${url.substring(0, 120)}... | hasData=${hasData}${dataPreview ? ` | preview=${dataPreview.substring(0, 200)}` : ''}`);
+}
+
+function getResultCount(data: any): number {
+  if (!data) return 0;
+  if (Array.isArray(data)) return data.length;
+  if (Array.isArray(data.data)) return data.data.length;
+  if (Array.isArray(data.results)) return data.results.length;
+  if (Array.isArray(data.coins)) return data.coins.length;
+  if (Array.isArray(data.items)) return data.items.length;
+  if (typeof data === 'object') return Object.keys(data).length;
+  return 1;
+}
+
+function previewResponse(data: any): string {
+  if (data == null) return '';
+  return (typeof data === 'string' ? data : JSON.stringify(data)).substring(0, 300);
+}
+
+function logProviderQuery(provider: string, identification: Partial<Identification>, query: string, url: string) {
+  log(
+    provider,
+    `Provider="${provider}" | category="${identification.category || 'N/A'}" | subcategory="${identification.subcategory || 'N/A'}" | query="${query}" | url="${url}"`
+  );
 }
 
 // ─── API Key Checker ────────────────────────────────────────────────────────
@@ -71,7 +94,8 @@ function checkApiKeys(): ApiKeyStatus[] {
 
   for (const key of keys) {
     if (!key.configured && key.required) {
-      console.error(`🔑 API key missing: ${key.name} (env: ${key.envVar})`);
+      console.error(`API key missing: ${key.name}`);
+      logError('keys', `Missing env var ${key.envVar} for ${key.name}`);
     } else {
       log('keys', `✅ ${key.name}: configured`);
     }
@@ -134,9 +158,18 @@ interface CoinRefinement {
   originalName?: string;
 }
 
+interface FetchResult {
+  ok: boolean;
+  status: number;
+  data: any;
+  error?: string;
+  responsePreview: string;
+  resultCount: number;
+}
+
 // ─── Robust Fetch ───────────────────────────────────────────────────────────
 
-async function robustFetch(provider: string, url: string, options: RequestInit = {}, timeoutMs = 8000): Promise<{ ok: boolean; status: number; data: any }> {
+async function robustFetch(provider: string, url: string, options: RequestInit = {}, timeoutMs = 8000): Promise<FetchResult> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
   
@@ -148,23 +181,28 @@ async function robustFetch(provider: string, url: string, options: RequestInit =
     const text = await res.text();
     let data: any = null;
     try { data = JSON.parse(text); } catch { data = text; }
+    const responsePreview = previewResponse(data);
+    const resultCount = getResultCount(data);
     
-    logApiCall(provider, url, res.status, !!data, typeof data === 'string' ? data : JSON.stringify(data).substring(0, 200));
+    logApiCall(provider, url, res.status, resultCount, !!data, responsePreview);
     
     if (!res.ok) {
-      logError(provider, `HTTP ${res.status} from ${url.substring(0, 80)}`, typeof data === 'string' ? data : JSON.stringify(data).substring(0, 300));
-      return { ok: false, status: res.status, data };
+      const error = `HTTP ${res.status}`;
+      logError(provider, `${error} from ${url.substring(0, 80)}`, responsePreview);
+      return { ok: false, status: res.status, data, error, responsePreview, resultCount };
     }
     
-    return { ok: true, status: res.status, data };
+    return { ok: true, status: res.status, data, responsePreview, resultCount };
   } catch (e: any) {
     clearTimeout(timeout);
     if (e.name === 'AbortError') {
+      const error = `Timeout after ${timeoutMs}ms`;
       logError(provider, `TIMEOUT (${timeoutMs}ms) for ${url.substring(0, 80)}`);
-      return { ok: false, status: 0, data: null };
+      return { ok: false, status: 0, data: null, error, responsePreview: '', resultCount: 0 };
     }
+    const error = e instanceof Error ? e.message : 'Network error';
     logError(provider, `NETWORK ERROR for ${url.substring(0, 80)}`, e);
-    return { ok: false, status: 0, data: null };
+    return { ok: false, status: 0, data: null, error, responsePreview: '', resultCount: 0 };
   }
 }
 
@@ -256,7 +294,7 @@ const pokemonTCGProvider: CollectibleProvider = {
   name: 'pokemon-tcg',
   categories: ['Cartas'],
   async fetchItem(id: Identification): Promise<ProviderResult> {
-    log('pokemon-tcg', `Starting | subcategory="${id.subcategory}" | name="${id.name}" | tcg_set_id="${id.tcg_set_id}" | card_number="${id.card_number}"`);
+    log('pokemon-tcg', `Starting | category="${id.category}" | subcategory="${id.subcategory}" | name="${id.name}" | tcg_set_id="${id.tcg_set_id}" | card_number="${id.card_number}"`);
     
     if (!matchesSubcategory(id.subcategory, 'pokémon', 'pokemon') && id.subcategory) {
       log('pokemon-tcg', `Skipping — subcategory "${id.subcategory}" doesn't match Pokémon`);
@@ -271,6 +309,7 @@ const pokemonTCGProvider: CollectibleProvider = {
       if (id.tcg_set_id && id.card_number) {
         const q = `set.id:${id.tcg_set_id} number:${id.card_number}`;
         const url = `https://api.pokemontcg.io/v2/cards?q=${encodeURIComponent(q)}&pageSize=1`;
+        logProviderQuery('pokemon-tcg', id, q, url);
         const { ok, data } = await robustFetch('pokemon-tcg', url);
         if (ok && data?.data?.length > 0) {
           exactMatch = pokemonCardToNormalized(data.data[0]);
@@ -285,6 +324,7 @@ const pokemonTCGProvider: CollectibleProvider = {
         const pokemonName = id.name.split(/[\s\-–]/)[0];
         const q = `set.id:${id.tcg_set_id} name:"${pokemonName}"`;
         const url = `https://api.pokemontcg.io/v2/cards?q=${encodeURIComponent(q)}&pageSize=5`;
+        logProviderQuery('pokemon-tcg', id, q, url);
         const { ok, data } = await robustFetch('pokemon-tcg', url);
         if (ok && data?.data?.length > 0) {
           if (data.data.length === 1) {
@@ -308,6 +348,7 @@ const pokemonTCGProvider: CollectibleProvider = {
         const pokemonName = id.name.split(/[\s\-–]/)[0];
         const q = `name:"${pokemonName}"`;
         const url = `https://api.pokemontcg.io/v2/cards?q=${encodeURIComponent(q)}&pageSize=10&orderBy=-set.releaseDate`;
+        logProviderQuery('pokemon-tcg', id, q, url);
         const { ok, data } = await robustFetch('pokemon-tcg', url);
         if (ok && data?.data?.length > 0) {
           candidates = data.data.map(pokemonCardToNormalized);
@@ -342,7 +383,7 @@ const yugiohProvider: CollectibleProvider = {
   name: 'yugioh',
   categories: ['Cartas'],
   async fetchItem(id: Identification): Promise<ProviderResult> {
-    log('yugioh', `Starting | subcategory="${id.subcategory}" | name="${id.name}"`);
+    log('yugioh', `Starting | category="${id.category}" | subcategory="${id.subcategory}" | name="${id.name}"`);
     
     if (!matchesSubcategory(id.subcategory, 'yu-gi-oh', 'yugioh', 'yu gi oh')) {
       log('yugioh', `Skipping — subcategory "${id.subcategory}" doesn't match Yu-Gi-Oh!`);
@@ -352,6 +393,7 @@ const yugiohProvider: CollectibleProvider = {
     try {
       const cardName = id.name.split(/[\-–·]/)[0].trim();
       const url = `https://db.ygoprodeck.com/api/v7/cardinfo.php?fname=${encodeURIComponent(cardName)}&num=5&offset=0`;
+      logProviderQuery('yugioh', id, cardName, url);
       const { ok, data } = await robustFetch('yugioh', url);
       if (!ok || !data?.data?.length) {
         log('yugioh', `No results for "${cardName}"`);
@@ -396,7 +438,7 @@ const mtgProvider: CollectibleProvider = {
   name: 'mtg-scryfall',
   categories: ['Cartas'],
   async fetchItem(id: Identification): Promise<ProviderResult> {
-    log('mtg-scryfall', `Starting | subcategory="${id.subcategory}" | name="${id.name}"`);
+    log('mtg-scryfall', `Starting | category="${id.category}" | subcategory="${id.subcategory}" | name="${id.name}"`);
     
     if (!matchesSubcategory(id.subcategory, 'magic', 'mtg', 'the gathering')) {
       log('mtg-scryfall', `Skipping — subcategory "${id.subcategory}" doesn't match MTG`);
@@ -406,6 +448,7 @@ const mtgProvider: CollectibleProvider = {
     try {
       const cardName = id.name.split(/[\-–·]/)[0].trim();
       const url = `https://api.scryfall.com/cards/search?q=${encodeURIComponent(cardName)}&unique=prints&order=released&dir=desc`;
+      logProviderQuery('mtg-scryfall', id, cardName, url);
       const { ok, data } = await robustFetch('mtg-scryfall', url);
       if (!ok || !data?.data?.length) {
         log('mtg-scryfall', `No results for "${cardName}"`);
@@ -462,12 +505,15 @@ const comicVineProvider: CollectibleProvider = {
   async fetchItem(id: Identification): Promise<ProviderResult> {
     const apiKey = Deno.env.get('COMIC_VINE_API_KEY');
     if (!apiKey) {
-      logError('comic-vine', '🔑 API key missing: COMIC_VINE_API_KEY — Cannot search comics. Set this secret to enable Comic Vine.');
+      console.error('API key missing: Comic Vine');
+      logError('comic-vine', 'API key missing: Comic Vine (COMIC_VINE_API_KEY)');
       return { exactMatch: null, candidates: [] };
     }
 
     try {
+      const query = id.name;
       const url = `https://comicvine.gamespot.com/api/search/?api_key=${apiKey}&format=json&query=${encodeURIComponent(id.name)}&resources=issue&limit=5&field_list=id,name,image,site_detail_url,issue_number,volume,cover_date`;
+      logProviderQuery('comic-vine', id, query, url);
       const { ok, data } = await robustFetch('comic-vine', url, { headers: { 'User-Agent': 'ColecScan/1.0' } });
       if (!ok || !data?.results?.length) {
         log('comic-vine', `No results for "${id.name}"`);
@@ -542,15 +588,16 @@ const numistaProvider: CollectibleProvider = {
   async fetchItem(id: Identification, refinement?: CoinRefinement): Promise<ProviderResult> {
     const apiKey = Deno.env.get('NUMISTA_API_KEY');
     if (!apiKey) {
-      logError('numista', '🔑 API key missing: NUMISTA_API_KEY — Cannot search coins. Set this secret to enable Numista.');
+      console.error('API key missing: Numista');
+      logError('numista', 'API key missing: Numista (NUMISTA_API_KEY)');
       return { exactMatch: null, candidates: [] };
     }
 
     try {
       const query = buildCoinQuery(id, refinement);
-      log('numista', `Searching: "${query}"`);
 
       const url = `https://api.numista.com/api/v3/coins?q=${encodeURIComponent(query)}&count=10`;
+      logProviderQuery('numista', id, query, url);
       const { ok, data } = await robustFetch('numista', url, {
         headers: { 'Numista-API-Key': apiKey, 'Accept': 'application/json' },
       });
@@ -605,7 +652,7 @@ const toysProvider: CollectibleProvider = {
   name: 'toys-figures',
   categories: ['Juguetes', 'Figuras'],
   async fetchItem(id: Identification): Promise<ProviderResult> {
-    log('toys-figures', `metadata-only mode for: "${id.name}" — no external API available for this category`);
+    log('toys-figures', `metadata-only mode | category="${id.category}" | subcategory="${id.subcategory}" | name="${id.name}" — no external API available for this category`);
     return { exactMatch: null, candidates: [] };
   }
 };
@@ -616,7 +663,7 @@ const stampsProvider: CollectibleProvider = {
   name: 'stamps',
   categories: ['Sellos'],
   async fetchItem(id: Identification): Promise<ProviderResult> {
-    log('stamps', `metadata-only mode for: "${id.name}" — no external API available for this category`);
+    log('stamps', `metadata-only mode | category="${id.category}" | subcategory="${id.subcategory}" | name="${id.name}" — no external API available for this category`);
     return { exactMatch: null, candidates: [] };
   }
 };
@@ -630,12 +677,15 @@ const vinylProvider: CollectibleProvider = {
   async fetchItem(id: Identification): Promise<ProviderResult> {
     const token = Deno.env.get('DISCOGS_TOKEN');
     if (!token) {
-      logError('discogs', '🔑 API key missing: DISCOGS_TOKEN — Cannot search vinyl records. Set this secret to enable Discogs.');
+      console.error('API key missing: Discogs');
+      logError('discogs', 'API key missing: Discogs (DISCOGS_TOKEN)');
       return { exactMatch: null, candidates: [] };
     }
 
     try {
+      const query = id.name;
       const url = `https://api.discogs.com/database/search?q=${encodeURIComponent(id.name)}&type=release&per_page=5`;
+      logProviderQuery('discogs', id, query, url);
       const { ok, data } = await robustFetch('discogs', url, {
         headers: { 'Authorization': `Discogs token=${token}`, 'User-Agent': 'ColecScan/1.0' },
       });
@@ -858,6 +908,51 @@ async function fetchOfficialData(identification: Identification, refinement?: Co
   return { exactMatch: null, candidates: allCandidates };
 }
 
+function escapeXml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function buildFallbackImageUrl(category: string, name: string): string {
+  const title = escapeXml(category || 'Coleccionable');
+  const subtitle = escapeXml((name || 'Sin imagen oficial').substring(0, 44));
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 640" role="img" aria-label="Fallback ${title}">
+      <defs>
+        <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#111827" />
+          <stop offset="100%" stop-color="#1f2937" />
+        </linearGradient>
+      </defs>
+      <rect width="480" height="640" rx="32" fill="url(#bg)" />
+      <rect x="24" y="24" width="432" height="592" rx="24" fill="none" stroke="#f59e0b" stroke-opacity="0.4" stroke-width="3" />
+      <text x="50%" y="46%" text-anchor="middle" fill="#f9fafb" font-family="Georgia, serif" font-size="34" font-weight="700">${title}</text>
+      <text x="50%" y="54%" text-anchor="middle" fill="#d1d5db" font-family="Arial, sans-serif" font-size="20">${subtitle}</text>
+      <text x="50%" y="88%" text-anchor="middle" fill="#f59e0b" font-family="Arial, sans-serif" font-size="16">Fallback del sistema de diagnóstico</text>
+    </svg>
+  `;
+
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+}
+
+function createFallbackItem(identification: Identification): NormalizedItem {
+  const normalizedCategory = normalizeCategory(identification.category);
+  return {
+    imageUrl: buildFallbackImageUrl(normalizedCategory, identification.name),
+    source: 'Fallback',
+    attribution: `Fallback generado para ${normalizedCategory} cuando ningún provider devolvió imagen válida.`,
+    sourceUrl: '',
+    externalId: `fallback:${removeAccents(identification.name || normalizedCategory).toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
+    setName: identification.set_or_edition || normalizedCategory,
+    number: identification.catalog_id || identification.card_number || '',
+    name: identification.name || normalizedCategory,
+  };
+}
+
 // ─── Response Builder ───────────────────────────────────────────────────────
 
 function buildResponse(
@@ -865,20 +960,22 @@ function buildResponse(
   exactMatch: NormalizedItem | null,
   candidates: NormalizedItem[],
 ) {
-  const needsConfirmation = (!exactMatch && candidates.length > 0) || (identification.confidence < 0.7 && candidates.length > 1);
+  const validCandidates = candidates.filter((candidate) => !!candidate.imageUrl);
+  const primaryItem = (exactMatch && exactMatch.imageUrl ? exactMatch : validCandidates[0]) || createFallbackItem(identification);
+  const needsConfirmation = (!exactMatch && validCandidates.length > 1) || (identification.confidence < 0.7 && validCandidates.length > 1);
 
-  const officialImage = exactMatch ? {
-    imageUrl: exactMatch.imageUrl,
-    source: exactMatch.source,
-    attribution: exactMatch.attribution,
-    sourceUrl: exactMatch.sourceUrl,
-    cardId: exactMatch.externalId,
-    setName: exactMatch.setName,
-    number: exactMatch.number,
-    name: exactMatch.name,
-  } : null;
+  const officialImage = {
+    imageUrl: primaryItem.imageUrl,
+    source: primaryItem.source,
+    attribution: primaryItem.attribution,
+    sourceUrl: primaryItem.sourceUrl,
+    cardId: primaryItem.externalId,
+    setName: primaryItem.setName,
+    number: primaryItem.number,
+    name: primaryItem.name,
+  };
 
-  const candidatesLegacy = (needsConfirmation ? candidates : []).map(c => ({
+  const candidatesLegacy = (needsConfirmation ? validCandidates : []).map(c => ({
     imageUrl: c.imageUrl,
     source: c.source,
     attribution: c.attribution,
@@ -895,11 +992,12 @@ function buildResponse(
     officialImage,
     candidates: candidatesLegacy,
     needsConfirmation,
-    provider: exactMatch?.source || candidates[0]?.source || null,
-    marketData: exactMatch?.marketData || null,
+    provider: primaryItem.source || null,
+    marketData: primaryItem.marketData || null,
+    fallbackUsed: primaryItem.source === 'Fallback',
   };
 
-  log('response', `Built response: officialImage=${!!officialImage}, candidates=${candidatesLegacy.length}, needsConfirmation=${needsConfirmation}, provider=${response.provider}`);
+  log('response', `Built response: officialImage=${!!officialImage}, candidates=${candidatesLegacy.length}, needsConfirmation=${needsConfirmation}, provider=${response.provider}, fallbackUsed=${response.fallbackUsed}`);
   return response;
 }
 

@@ -2,13 +2,7 @@ import { useState, useEffect } from "react";
 import { ExternalLink } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import CategoryPlaceholder from "@/components/CategoryPlaceholder";
-
-interface ImageResult {
-  imageUrl: string;
-  source: string;
-  attribution: string;
-  sourceUrl: string;
-}
+import { fetchCollectibleImage, type ImageResult } from "@/lib/api/collectibleImages";
 
 interface CollectibleImageProps {
   name: string;
@@ -27,27 +21,6 @@ const sizeClasses = {
   md: "h-32 w-32",
   lg: "h-48 w-full",
 };
-
-async function fetchPokemonTCGImage(name: string): Promise<ImageResult | null> {
-  try {
-    const pokemonName = name.split(/\s+/)[0];
-    const res = await fetch(
-      `https://api.pokemontcg.io/v2/cards?q=name:"${encodeURIComponent(pokemonName)}"&pageSize=1&orderBy=-set.releaseDate`
-    );
-    if (!res.ok) return null;
-    const data = await res.json();
-    const card = data.data?.[0];
-    if (!card?.images) return null;
-    return {
-      imageUrl: card.images.large || card.images.small,
-      source: "Pokémon TCG API",
-      attribution: "© Nintendo/Creatures Inc./GAME FREAK inc. via pokemontcg.io",
-      sourceUrl: `https://pokemontcg.io/card/${card.id}`,
-    };
-  } catch {
-    return null;
-  }
-}
 
 const CollectibleImage = ({
   name,
@@ -70,19 +43,23 @@ const CollectibleImage = ({
     setLoading(true);
     setError(false);
 
-    const cat = category.toLowerCase();
-
-    if (cat.includes("carta") || cat.includes("card")) {
-      fetchPokemonTCGImage(name).then((result) => {
+    fetchCollectibleImage(name, category)
+      .then((result) => {
         if (cancelled) return;
         setImageData(result);
-        setLoading(false);
+      })
+      .catch((fetchError) => {
+        console.error("Collectible image lookup failed:", fetchError);
+        if (!cancelled) setError(true);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
       });
-    } else {
-      setLoading(false);
-    }
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      setLoading(false);
+    };
   }, [name, category, userImage, officialImageUrl]);
 
   const displayImage = officialImageUrl || userImage || imageData?.imageUrl;

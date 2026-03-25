@@ -27,6 +27,7 @@ function logError(provider: string, message: string, error?: any) {
 interface SearchRequest {
   name: string;
   category: string;
+  subcategory?: string;
 }
 
 interface ImageResult {
@@ -34,9 +35,88 @@ interface ImageResult {
   source: string;
   attribution: string;
   sourceUrl: string;
+  isFallback?: boolean;
+  reason?: string;
 }
 
-async function fetchWithTimeout(provider: string, url: string, options: RequestInit = {}, timeoutMs = 6000): Promise<{ ok: boolean; status: number; data: any }> {
+function getResultCount(data: any): number {
+  if (!data) return 0;
+  if (Array.isArray(data)) return data.length;
+  if (Array.isArray(data.data)) return data.data.length;
+  if (Array.isArray(data.results)) return data.results.length;
+  if (Array.isArray(data.coins)) return data.coins.length;
+  if (typeof data === 'object') return Object.keys(data).length;
+  return 1;
+}
+
+function previewResponse(data: any): string {
+  if (data == null) return '';
+  return (typeof data === 'string' ? data : JSON.stringify(data)).substring(0, 300);
+}
+
+function escapeXml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function buildFallbackImageUrl(name: string, category: string): string {
+  const title = escapeXml(category || 'Coleccionable');
+  const subtitle = escapeXml((name || 'Sin imagen').substring(0, 42));
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 640" role="img" aria-label="Fallback ${title}">
+      <defs>
+        <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#111827" />
+          <stop offset="100%" stop-color="#1f2937" />
+        </linearGradient>
+      </defs>
+      <rect width="480" height="640" rx="32" fill="url(#bg)" />
+      <rect x="24" y="24" width="432" height="592" rx="24" fill="none" stroke="#f59e0b" stroke-opacity="0.4" stroke-width="3" />
+      <text x="50%" y="46%" text-anchor="middle" fill="#f9fafb" font-family="Georgia, serif" font-size="34" font-weight="700">${title}</text>
+      <text x="50%" y="54%" text-anchor="middle" fill="#d1d5db" font-family="Arial, sans-serif" font-size="20">${subtitle}</text>
+      <text x="50%" y="88%" text-anchor="middle" fill="#f59e0b" font-family="Arial, sans-serif" font-size="16">Fallback del sistema</text>
+    </svg>
+  `;
+
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+}
+
+function createFallbackResult(name: string, category: string, reason: string): ImageResult {
+  log('fallback', `Using fallback image | category="${category}" | reason="${reason}" | name="${name}"`);
+  return {
+    imageUrl: buildFallbackImageUrl(name, category),
+    source: 'Fallback',
+    attribution: `Fallback generado para ${category} cuando no hubo respuesta válida de los providers.`,
+    sourceUrl: '',
+    isFallback: true,
+    reason,
+  };
+}
+
+function logProviderStart(provider: string, category: string, subcategory: string | undefined, query: string, url: string) {
+  log(provider, `Provider="${provider}" | category="${category}" | subcategory="${subcategory || 'N/A'}" | query="${query}" | url="${url}"`);
+}
+
+function checkApiKeys() {
+  const keyChecks = [
+    { provider: 'Comic Vine', envVar: 'COMIC_VINE_API_KEY' },
+    { provider: 'Numista', envVar: 'NUMISTA_API_KEY' },
+    { provider: 'Discogs', envVar: 'DISCOGS_TOKEN' },
+  ];
+
+  for (const key of keyChecks) {
+    if (!Deno.env.get(key.envVar)) {
+      console.error(`API key missing: ${key.provider}`);
+      logError('keys', `Missing env var ${key.envVar} for ${key.provider}`);
+    }
+  }
+}
+
+async function robustFetch(provider: string, url: string, options: RequestInit = {}, timeoutMs = 6000): Promise<{ ok: boolean; status: number; data: any; error?: string; resultCount: number; responsePreview: string }> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -46,22 +126,27 @@ async function fetchWithTimeout(provider: string, url: string, options: RequestI
     const text = await res.text();
     let data: any = null;
     try { data = JSON.parse(text); } catch { data = text; }
+    const responsePreview = previewResponse(data);
+    const resultCount = getResultCount(data);
     
     const statusEmoji = res.ok ? '✅' : '⚠️';
-    log(provider, `${statusEmoji} ${res.status} | hasData=${!!data}`);
+    log(provider, `${statusEmoji} status=${res.status} | results=${resultCount} | hasData=${!!data}`);
     
     if (!res.ok) {
-      logError(provider, `HTTP ${res.status}`, typeof data === 'string' ? data.substring(0, 200) : JSON.stringify(data).substring(0, 200));
+      const error = `HTTP ${res.status}`;
+      logError(provider, error, responsePreview);
+      return { ok: false, status: res.status, data, error, resultCount, responsePreview };
     }
-    return { ok: res.ok, status: res.status, data };
+    return { ok: res.ok, status: res.status, data, resultCount, responsePreview };
   } catch (e: any) {
     clearTimeout(timeout);
     if (e.name === 'AbortError') {
       logError(provider, `TIMEOUT (${timeoutMs}ms) for ${url.substring(0, 80)}`);
+      return { ok: false, status: 0, data: null, error: `Timeout after ${timeoutMs}ms`, resultCount: 0, responsePreview: '' };
     } else {
       logError(provider, `NETWORK ERROR`, e);
+      return { ok: false, status: 0, data: null, error: e?.message || 'Network error', resultCount: 0, responsePreview: '' };
     }
-    return { ok: false, status: 0, data: null };
   }
 }
 
@@ -113,7 +198,8 @@ async function searchPokemonImage(name: string): Promise<ImageResult | null> {
   }
 
   const url = `https://pokeapi.co/api/v2/pokemon/${pokemonName}`;
-  const { ok, data } = await fetchWithTimeout('pokeapi', url);
+  logProviderStart('pokeapi', 'Cartas', 'Pokémon', pokemonName, url);
+  const { ok, data } = await robustFetch('pokeapi', url);
   if (!ok || !data) {
     log('pokeapi', `No result for "${pokemonName}"`);
     return null;
@@ -137,15 +223,18 @@ async function searchPokemonImage(name: string): Promise<ImageResult | null> {
   };
 }
 
-async function searchComicVine(name: string): Promise<ImageResult | null> {
+async function searchComicVine(name: string, category: string, subcategory?: string): Promise<ImageResult | null> {
   const apiKey = Deno.env.get('COMIC_VINE_API_KEY');
   if (!apiKey) {
-    logError('comic-vine', '🔑 API key missing: COMIC_VINE_API_KEY — skipping comic image search');
+    console.error('API key missing: Comic Vine');
+    logError('comic-vine', 'API key missing: Comic Vine (COMIC_VINE_API_KEY)');
     return null;
   }
 
+  const query = name.trim();
   const url = `https://comicvine.gamespot.com/api/search/?api_key=${apiKey}&format=json&query=${encodeURIComponent(name)}&resources=issue&limit=1&field_list=id,name,image,site_detail_url`;
-  const { ok, data } = await fetchWithTimeout('comic-vine', url, { headers: { 'User-Agent': 'ColecScan/1.0' } });
+  logProviderStart('comic-vine', category, subcategory, query, url);
+  const { ok, data } = await robustFetch('comic-vine', url, { headers: { 'User-Agent': 'ColecScan/1.0' } });
   if (!ok || !data?.results?.[0]) {
     log('comic-vine', `No results for "${name}"`);
     return null;
@@ -161,15 +250,18 @@ async function searchComicVine(name: string): Promise<ImageResult | null> {
   };
 }
 
-async function searchNumista(name: string): Promise<ImageResult | null> {
+async function searchNumista(name: string, category: string, subcategory?: string): Promise<ImageResult | null> {
   const apiKey = Deno.env.get('NUMISTA_API_KEY');
   if (!apiKey) {
-    logError('numista', '🔑 API key missing: NUMISTA_API_KEY — skipping coin image search');
+    console.error('API key missing: Numista');
+    logError('numista', 'API key missing: Numista (NUMISTA_API_KEY)');
     return null;
   }
 
+  const query = name.trim();
   const url = `https://api.numista.com/api/v3/coins?q=${encodeURIComponent(name)}&count=1`;
-  const { ok, data } = await fetchWithTimeout('numista', url, {
+  logProviderStart('numista', category, subcategory, query, url);
+  const { ok, data } = await robustFetch('numista', url, {
     headers: { 'Numista-API-Key': apiKey, 'Accept': 'application/json' },
   });
   if (!ok || !data?.coins?.[0]) {
@@ -187,14 +279,48 @@ async function searchNumista(name: string): Promise<ImageResult | null> {
   };
 }
 
+async function searchDiscogs(name: string, category: string, subcategory?: string): Promise<ImageResult | null> {
+  const token = Deno.env.get('DISCOGS_TOKEN');
+  if (!token) {
+    console.error('API key missing: Discogs');
+    logError('discogs', 'API key missing: Discogs (DISCOGS_TOKEN)');
+    return null;
+  }
+
+  const query = name.trim();
+  const url = `https://api.discogs.com/database/search?q=${encodeURIComponent(query)}&type=release&per_page=1`;
+  logProviderStart('discogs', category, subcategory, query, url);
+  const { ok, data } = await robustFetch('discogs', url, {
+    headers: {
+      'Authorization': `Discogs token=${token}`,
+      'User-Agent': 'ColecScan/1.0',
+    },
+  });
+
+  if (!ok || !data?.results?.[0]) {
+    log('discogs', `No results for "${name}"`);
+    return null;
+  }
+
+  const release = data.results[0];
+  log('discogs', `✅ Found: ${release.title || 'unnamed'}`);
+  return {
+    imageUrl: release.cover_image || release.thumb || '',
+    source: 'Discogs',
+    attribution: 'Data provided by Discogs (discogs.com)',
+    sourceUrl: `https://www.discogs.com${release.uri || ''}`,
+  };
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { name, category }: SearchRequest = await req.json();
-    log('main', `═══ Image search: "${name}" | category: "${category}" ═══`);
+    const { name, category, subcategory }: SearchRequest = await req.json();
+    log('main', `═══ Image search: "${name}" | category: "${category}" | subcategory: "${subcategory || 'N/A'}" ═══`);
+    checkApiKeys();
 
     if (!name) {
       logError('main', 'Name is required but was empty');
@@ -202,15 +328,6 @@ Deno.serve(async (req) => {
         JSON.stringify({ success: false, error: 'Name is required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
-    }
-
-    // Check API keys
-    const keys = [
-      { name: 'Comic Vine', env: 'COMIC_VINE_API_KEY', configured: !!Deno.env.get('COMIC_VINE_API_KEY') },
-      { name: 'Numista', env: 'NUMISTA_API_KEY', configured: !!Deno.env.get('NUMISTA_API_KEY') },
-    ];
-    for (const k of keys) {
-      if (!k.configured) logError('keys', `🔑 API key missing: ${k.name} (${k.env})`);
     }
 
     let result: ImageResult | null = null;
@@ -222,18 +339,25 @@ Deno.serve(async (req) => {
       result = await searchPokemonImage(name);
     } else if (cat.includes('comic')) {
       log('main', `Routing to: Comic Vine (comics)`);
-      result = await searchComicVine(name);
+      result = await searchComicVine(name, category, subcategory);
     } else if (cat.includes('moneda') || cat.includes('coin')) {
       log('main', `Routing to: Numista (coins)`);
-      result = await searchNumista(name);
+      result = await searchNumista(name, category, subcategory);
+    } else if (cat.includes('vinilo') || cat.includes('vinyl') || cat.includes('record') || cat.includes('disco')) {
+      log('main', `Routing to: Discogs (vinyl)`);
+      result = await searchDiscogs(name, category, subcategory);
     } else {
-      log('main', `No specific handler for category "${cat}" — trying PokéAPI as fallback`);
+      log('main', `No specific handler for category "${cat}" — trying generic fallback chain`);
     }
 
     // Fallback chain
-    if (!result) {
-      log('main', `Primary provider returned null. Trying fallback: PokéAPI`);
+    if (!result && (cat.includes('carta') || cat.includes('card') || cat === 'otro')) {
+      log('main', `Primary provider returned null. Trying fallback provider: PokéAPI`);
       result = await searchPokemonImage(name);
+    }
+
+    if (!result) {
+      result = createFallbackResult(name, category || 'Coleccionable', `No provider returned data for ${category || 'Coleccionable'}`);
     }
 
     if (result) {
@@ -243,7 +367,7 @@ Deno.serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ success: true, data: result }),
+      JSON.stringify({ success: true, data: result, diagnostics: { category, subcategory: subcategory || null, normalizedCategory: cat, fallbackUsed: !!result?.isFallback } }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
