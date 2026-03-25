@@ -17,8 +17,20 @@ interface ProviderTest {
   statusCode: number;
   responseTime: number;
   hasData: boolean;
+  resultCount: number;
+  serviceStatus: string;
   error?: string;
   sampleData?: string;
+}
+
+function getResultCount(data: any): number {
+  if (!data) return 0;
+  if (Array.isArray(data)) return data.length;
+  if (Array.isArray(data.data)) return data.data.length;
+  if (Array.isArray(data.results)) return data.results.length;
+  if (Array.isArray(data.coins)) return data.coins.length;
+  if (typeof data === 'object') return Object.keys(data).length;
+  return 1;
 }
 
 async function testProvider(
@@ -39,10 +51,13 @@ async function testProvider(
     statusCode: 0,
     responseTime: 0,
     hasData: false,
+    resultCount: 0,
+    serviceStatus: 'ERROR',
   };
 
   if (requiresKey && !apiKeyConfigured) {
-    result.error = `🔑 API key missing: ${envVar}`;
+    result.error = `API key missing: ${name}`;
+    result.serviceStatus = 'ERROR (missing key)';
     console.error(`[health] ${name}: ${result.error}`);
     return result;
   }
@@ -60,13 +75,16 @@ async function testProvider(
     const text = await res.text();
     let data: any = null;
     try { data = JSON.parse(text); } catch { data = text; }
+    result.resultCount = getResultCount(data);
 
     if (res.ok) {
-      result.status = 'ok';
       result.hasData = !!data && (typeof data !== 'object' || Object.keys(data).length > 0);
       result.sampleData = JSON.stringify(data).substring(0, 200);
+      result.status = result.hasData ? 'ok' : 'error';
+      result.serviceStatus = result.hasData ? 'OK' : 'ERROR (empty result)';
     } else {
       result.status = 'error';
+      result.serviceStatus = `ERROR (${res.status})`;
       result.error = `HTTP ${res.status}: ${typeof data === 'string' ? data.substring(0, 150) : JSON.stringify(data).substring(0, 150)}`;
     }
   } catch (e: any) {
@@ -74,15 +92,17 @@ async function testProvider(
     result.responseTime = Date.now() - start;
     if (e.name === 'AbortError') {
       result.status = 'timeout';
+      result.serviceStatus = 'ERROR (timeout)';
       result.error = `Timeout after 8000ms`;
     } else {
       result.status = 'error';
+      result.serviceStatus = 'ERROR (network)';
       result.error = e.message;
     }
   }
 
   const emoji = result.status === 'ok' ? '✅' : result.status === 'skipped' ? '⏭️' : '❌';
-  console.log(`[health] ${emoji} ${name}: ${result.status} (${result.responseTime}ms) ${result.error || ''}`);
+  console.log(`[health] ${emoji} ${name}: ${result.serviceStatus} (${result.responseTime}ms) | results=${result.resultCount} ${result.error || ''}`);
   return result;
 }
 
@@ -151,14 +171,6 @@ Deno.serve(async (req) => {
       'DISCOGS_TOKEN',
       true,
     ),
-    // AI Gateway
-    testProvider(
-      'Lovable AI Gateway',
-      'https://ai.gateway.lovable.dev/v1/models',
-      { headers: { 'Authorization': `Bearer ${Deno.env.get('LOVABLE_API_KEY') || ''}` } },
-      'LOVABLE_API_KEY',
-      true,
-    ),
   ]);
 
   const summary = {
@@ -169,6 +181,7 @@ Deno.serve(async (req) => {
     skipped: tests.filter(t => t.status === 'skipped').length,
     timeouts: tests.filter(t => t.status === 'timeout').length,
     missingKeys: tests.filter(t => !t.apiKeyConfigured).map(t => t.envVar),
+    services: Object.fromEntries(tests.map((t) => [t.name, t.serviceStatus])),
   };
 
   console.log(`[health] ═══ Summary: ${summary.ok}/${summary.total} OK | ${summary.errors} errors | ${summary.skipped} skipped | Missing keys: ${summary.missingKeys.join(', ') || 'none'} ═══`);
