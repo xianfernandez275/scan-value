@@ -7,31 +7,23 @@ import { toast } from "sonner";
 import { getCollection, removeFromCollection, updateItemNotes, updateItemGrade, type CollectionItem } from "@/lib/api/collection";
 import ItemDetailModal from "@/components/ItemDetailModal";
 import CategoryPlaceholder from "@/components/CategoryPlaceholder";
+import CollectibleImage from "@/components/CollectibleImage";
 import { getGradeLabel } from "@/components/GradeSelector";
 import { useAuth } from "@/contexts/AuthContext";
 import UsageBanner from "@/components/UsageBanner";
 import { useNavigate } from "react-router-dom";
 
 const CollectionThumbnail = ({ item }: { item: CollectionItem }) => {
-  const [imgError, setImgError] = useState(false);
-  const src = item.official_image_url || item.user_photo_url;
-  const isOfficial = !!item.official_image_url;
-
-  if (!src || imgError) {
-    return (
-      <div className="h-14 w-14 shrink-0 rounded-lg overflow-hidden">
-        <CategoryPlaceholder category={item.category} className="h-full w-full" />
-      </div>
-    );
-  }
-
   return (
-    <div className="h-14 w-14 shrink-0 rounded-lg overflow-hidden bg-secondary">
-      <img
-        src={src}
-        alt={item.name}
-        className={`h-full w-full ${isOfficial ? 'object-contain p-0.5' : 'object-cover'}`}
-        onError={() => setImgError(true)}
+    <div className="h-14 w-14 shrink-0 rounded-lg overflow-hidden">
+      <CollectibleImage
+        name={item.name}
+        category={item.category}
+        userImage={item.user_photo_url || undefined}
+        officialImageUrl={item.official_image_url || undefined}
+        source={item.official_image_source || undefined}
+        sourceUrl={item.official_image_source_url || undefined}
+        size="sm"
       />
     </div>
   );
