@@ -14,6 +14,8 @@ interface CollectibleImageProps {
   sourceUrl?: string;
   className?: string;
   size?: "sm" | "md" | "lg";
+  /** If provided, fetched images will be persisted to DB for this item */
+  collectionItemId?: string;
 }
 
 const sizeClasses = {
