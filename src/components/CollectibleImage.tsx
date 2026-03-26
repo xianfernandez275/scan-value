@@ -14,6 +14,8 @@ interface CollectibleImageProps {
   sourceUrl?: string;
   className?: string;
   size?: "sm" | "md" | "lg";
+  /** If provided, fetched images will be persisted to DB for this item */
+  collectionItemId?: string;
 }
 
 const sizeClasses = {
@@ -31,6 +33,7 @@ const CollectibleImage = ({
   sourceUrl,
   className = "",
   size = "md",
+  collectionItemId,
 }: CollectibleImageProps) => {
   const [imageData, setImageData] = useState<ImageResult | null>(null);
   const [loading, setLoading] = useState(!userImage && !officialImageUrl);
@@ -43,7 +46,7 @@ const CollectibleImage = ({
     setLoading(true);
     setError(false);
 
-    fetchCollectibleImage(name, category)
+    fetchCollectibleImage(name, category, collectionItemId)
       .then((result) => {
         if (cancelled) return;
         setImageData(result);

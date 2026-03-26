@@ -23,6 +23,7 @@ const CollectionThumbnail = ({ item }: { item: CollectionItem }) => {
         officialImageUrl={item.official_image_url || undefined}
         source={item.official_image_source || undefined}
         sourceUrl={item.official_image_source_url || undefined}
+        collectionItemId={item.id}
         size="sm"
       />
     </div>
