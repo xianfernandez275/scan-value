@@ -64,9 +64,14 @@ function createFallbackImageResult(name: string, category: string, reason: strin
   };
 }
 
+/**
+ * Fetch image from API. If collectionItemId is provided and a real image is found,
+ * persist it to the DB so future loads skip the API call.
+ */
 export async function fetchCollectibleImage(
   name: string,
-  category: string
+  category: string,
+  collectionItemId?: string,
 ): Promise<ImageResult> {
   try {
     const { data, error } = await supabase.functions.invoke('search-collectible-image', {
@@ -79,7 +84,26 @@ export async function fetchCollectibleImage(
     }
 
     if (data?.success && data?.data) {
-      return data.data as ImageResult;
+      const result = data.data as ImageResult;
+
+      // Persist to DB if we got a real image and have an item ID
+      if (collectionItemId && result.imageUrl && !result.isFallback) {
+        supabase
+          .from('collection_items')
+          .update({
+            official_image_url: result.imageUrl,
+            official_image_source: result.source,
+            official_image_attribution: result.attribution,
+            official_image_source_url: result.sourceUrl,
+          })
+          .eq('id', collectionItemId)
+          .then(({ error: updateErr }) => {
+            if (updateErr) console.error('Failed to persist image:', updateErr);
+            else console.log(`✅ Image persisted for item ${collectionItemId}`);
+          });
+      }
+
+      return result;
     }
 
     console.error('Image search returned no data:', data);
