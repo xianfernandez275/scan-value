@@ -33,6 +33,7 @@ const CollectibleImage = ({
   sourceUrl,
   className = "",
   size = "md",
+  collectionItemId,
 }: CollectibleImageProps) => {
   const [imageData, setImageData] = useState<ImageResult | null>(null);
   const [loading, setLoading] = useState(!userImage && !officialImageUrl);
