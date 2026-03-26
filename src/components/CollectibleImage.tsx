@@ -46,7 +46,7 @@ const CollectibleImage = ({
     setLoading(true);
     setError(false);
 
-    fetchCollectibleImage(name, category)
+    fetchCollectibleImage(name, category, collectionItemId)
       .then((result) => {
         if (cancelled) return;
         setImageData(result);
