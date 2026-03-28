@@ -2,20 +2,27 @@ import { useState, useEffect } from "react";
 import { ExternalLink } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import CategoryPlaceholder from "@/components/CategoryPlaceholder";
-import { fetchCollectibleImage, type ImageResult } from "@/lib/api/collectibleImages";
+import { fetchCollectibleImage, type ImageResult, type ImageSearchParams } from "@/lib/api/collectibleImages";
 
 interface CollectibleImageProps {
   name: string;
   category: string;
   userImage?: string;
   officialImageUrl?: string;
-  /** Source API name for fallback placeholder (e.g. "PokéAPI", "Comic Vine") */
   source?: string;
   sourceUrl?: string;
   className?: string;
   size?: "sm" | "md" | "lg";
   /** If provided, fetched images will be persisted to DB for this item */
   collectionItemId?: string;
+  /** Precise identifiers for exact image lookup */
+  tcgSetId?: string;
+  cardNumber?: string;
+  catalogId?: string;
+  officialCardId?: string;
+  officialSetName?: string;
+  officialCardNumber?: string;
+  subcategory?: string;
 }
 
 const sizeClasses = {
@@ -34,6 +41,13 @@ const CollectibleImage = ({
   className = "",
   size = "md",
   collectionItemId,
+  tcgSetId,
+  cardNumber,
+  catalogId,
+  officialCardId,
+  officialSetName,
+  officialCardNumber,
+  subcategory,
 }: CollectibleImageProps) => {
   const [imageData, setImageData] = useState<ImageResult | null>(null);
   const [loading, setLoading] = useState(!userImage && !officialImageUrl);
@@ -46,7 +60,19 @@ const CollectibleImage = ({
     setLoading(true);
     setError(false);
 
-    fetchCollectibleImage(name, category, collectionItemId)
+    const params: ImageSearchParams = {
+      name,
+      category,
+      subcategory,
+      tcg_set_id: tcgSetId,
+      card_number: cardNumber,
+      catalog_id: catalogId,
+      official_card_id: officialCardId,
+      official_set_name: officialSetName,
+      official_card_number: officialCardNumber,
+    };
+
+    fetchCollectibleImage(params, collectionItemId)
       .then((result) => {
         if (cancelled) return;
         setImageData(result);
@@ -63,7 +89,7 @@ const CollectibleImage = ({
       cancelled = true;
       setLoading(false);
     };
-  }, [name, category, userImage, officialImageUrl]);
+  }, [name, category, userImage, officialImageUrl, tcgSetId, cardNumber, officialCardId]);
 
   const displayImage = officialImageUrl || userImage || imageData?.imageUrl;
   const attribution = imageData?.attribution;
