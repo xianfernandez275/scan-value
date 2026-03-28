@@ -24,6 +24,12 @@ const CollectionThumbnail = ({ item }: { item: CollectionItem }) => {
         source={item.official_image_source || undefined}
         sourceUrl={item.official_image_source_url || undefined}
         collectionItemId={item.id}
+        tcgSetId={item.tcg_set_id || undefined}
+        cardNumber={item.card_number || undefined}
+        catalogId={item.catalog_id || undefined}
+        officialCardId={item.official_card_id || undefined}
+        officialSetName={item.official_set_name || undefined}
+        officialCardNumber={item.official_card_number || undefined}
         size="sm"
       />
     </div>
