@@ -94,7 +94,8 @@ const CollectibleImage = ({
     };
   }, [name, category, userImage, officialImageUrl, tcgSetId, cardNumber, officialCardId]);
 
-  const matchConfidence = officialImageUrl ? 'high' : (imageData?.matchConfidence || 'low');
+  const isCard = category?.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().match(/carta|card|tcg/);
+  const matchConfidence = officialImageUrl ? 'high' : (imageData?.matchConfidence || (isCard ? 'low' : 'high'));
 
   const handleConfirm = useCallback(() => {
     setConfirmed(true);
