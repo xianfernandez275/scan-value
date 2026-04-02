@@ -337,6 +337,7 @@ async function searchDiscogs(name: string): Promise<ImageResult | null> {
     source: 'Discogs',
     attribution: 'Data provided by Discogs (discogs.com)',
     sourceUrl: `https://www.discogs.com${release.uri || ''}`,
+    matchConfidence: 'medium' as const,
   };
 }
 
