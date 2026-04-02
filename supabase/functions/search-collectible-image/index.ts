@@ -176,6 +176,7 @@ async function searchPokemonTCGExact(req: SearchRequest): Promise<ImageResult | 
             cardId: exact.id,
             setName: exact.set?.name || '',
             number: exact.number || '',
+            matchConfidence: 'high' as const,
           };
         }
       }
