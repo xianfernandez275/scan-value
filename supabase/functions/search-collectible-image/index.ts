@@ -315,6 +315,7 @@ async function searchNumista(name: string): Promise<ImageResult | null> {
     source: 'Numista',
     attribution: 'Data provided by Numista (en.numista.com)',
     sourceUrl: `https://en.numista.com/catalogue/pieces${coin.id}.html`,
+    matchConfidence: 'medium' as const,
   };
 }
 
