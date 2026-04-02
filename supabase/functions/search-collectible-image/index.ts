@@ -191,6 +191,7 @@ async function searchPokemonTCGExact(req: SearchRequest): Promise<ImageResult | 
           cardId: card.id,
           setName: card.set?.name || '',
           number: card.number || '',
+          matchConfidence: 'medium' as const,
         };
       }
       log('pokemon-tcg', `Multiple results (${data.data.length}) — returning first`);
@@ -203,6 +204,7 @@ async function searchPokemonTCGExact(req: SearchRequest): Promise<ImageResult | 
         cardId: card.id,
         setName: card.set?.name || '',
         number: card.number || '',
+        matchConfidence: 'medium' as const,
       };
     }
   }
