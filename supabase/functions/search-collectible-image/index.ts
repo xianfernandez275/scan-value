@@ -54,6 +54,7 @@ interface ImageResult {
   number?: string;
   isFallback?: boolean;
   reason?: string;
+  matchConfidence?: 'high' | 'medium' | 'low';
 }
 
 async function robustFetch(provider: string, url: string, options: RequestInit = {}, timeoutMs = 8000): Promise<{ ok: boolean; status: number; data: any }> {
