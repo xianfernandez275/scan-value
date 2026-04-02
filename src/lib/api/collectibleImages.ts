@@ -10,6 +10,7 @@ export interface ImageResult {
   number?: string;
   isFallback?: boolean;
   reason?: string;
+  matchConfidence?: 'high' | 'medium' | 'low';
 }
 
 export interface ImageSearchParams {
@@ -69,7 +70,7 @@ export async function fetchCollectibleImage(
       const result = data.data as ImageResult;
 
       // Persist to DB if we got a real image and have an item ID
-      if (collectionItemId && result.imageUrl && !result.isFallback) {
+      if (collectionItemId && result.imageUrl && !result.isFallback && result.matchConfidence === 'high') {
         supabase
           .from('collection_items')
           .update({

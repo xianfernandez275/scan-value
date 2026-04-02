@@ -54,6 +54,7 @@ interface ImageResult {
   number?: string;
   isFallback?: boolean;
   reason?: string;
+  matchConfidence?: 'high' | 'medium' | 'low';
 }
 
 async function robustFetch(provider: string, url: string, options: RequestInit = {}, timeoutMs = 8000): Promise<{ ok: boolean; status: number; data: any }> {
@@ -125,6 +126,7 @@ async function searchPokemonTCGExact(req: SearchRequest): Promise<ImageResult | 
         cardId: card.id,
         setName: card.set?.name || '',
         number: card.number || '',
+        matchConfidence: 'high' as const,
       };
     }
   }
@@ -147,6 +149,7 @@ async function searchPokemonTCGExact(req: SearchRequest): Promise<ImageResult | 
         cardId: card.id,
         setName: card.set?.name || '',
         number: card.number || '',
+        matchConfidence: 'high' as const,
       };
     }
   }
@@ -173,6 +176,7 @@ async function searchPokemonTCGExact(req: SearchRequest): Promise<ImageResult | 
             cardId: exact.id,
             setName: exact.set?.name || '',
             number: exact.number || '',
+            matchConfidence: 'high' as const,
           };
         }
       }
@@ -187,6 +191,7 @@ async function searchPokemonTCGExact(req: SearchRequest): Promise<ImageResult | 
           cardId: card.id,
           setName: card.set?.name || '',
           number: card.number || '',
+          matchConfidence: 'medium' as const,
         };
       }
       log('pokemon-tcg', `Multiple results (${data.data.length}) — returning first`);
@@ -199,6 +204,7 @@ async function searchPokemonTCGExact(req: SearchRequest): Promise<ImageResult | 
         cardId: card.id,
         setName: card.set?.name || '',
         number: card.number || '',
+        matchConfidence: 'medium' as const,
       };
     }
   }
@@ -220,6 +226,7 @@ async function searchPokemonTCGExact(req: SearchRequest): Promise<ImageResult | 
       cardId: card.id,
       setName: card.set?.name || '',
       number: card.number || '',
+      matchConfidence: 'low' as const,
     };
   }
 
@@ -244,6 +251,7 @@ async function searchMTGExact(req: SearchRequest): Promise<ImageResult | null> {
     cardId: card.id,
     setName: card.set_name || '',
     number: card.collector_number || '',
+    matchConfidence: 'medium' as const,
   };
 }
 
@@ -265,6 +273,7 @@ async function searchYuGiOhExact(req: SearchRequest): Promise<ImageResult | null
     cardId: String(card.id),
     setName: card.card_sets?.[0]?.set_name || '',
     number: card.card_sets?.[0]?.set_code || '',
+    matchConfidence: 'medium' as const,
   };
 }
 
@@ -284,6 +293,7 @@ async function searchComicVine(name: string): Promise<ImageResult | null> {
     source: 'Comic Vine',
     attribution: 'Data provided by Comic Vine (comicvine.gamespot.com)',
     sourceUrl: issue.site_detail_url || 'https://comicvine.gamespot.com',
+    matchConfidence: 'medium' as const,
   };
 }
 
@@ -305,6 +315,7 @@ async function searchNumista(name: string): Promise<ImageResult | null> {
     source: 'Numista',
     attribution: 'Data provided by Numista (en.numista.com)',
     sourceUrl: `https://en.numista.com/catalogue/pieces${coin.id}.html`,
+    matchConfidence: 'medium' as const,
   };
 }
 
@@ -326,6 +337,7 @@ async function searchDiscogs(name: string): Promise<ImageResult | null> {
     source: 'Discogs',
     attribution: 'Data provided by Discogs (discogs.com)',
     sourceUrl: `https://www.discogs.com${release.uri || ''}`,
+    matchConfidence: 'medium' as const,
   };
 }
 

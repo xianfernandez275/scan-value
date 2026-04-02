@@ -1,8 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { ExternalLink } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import CategoryPlaceholder from "@/components/CategoryPlaceholder";
+import ImageWatermark from "@/components/ImageWatermark";
 import { fetchCollectibleImage, type ImageResult, type ImageSearchParams } from "@/lib/api/collectibleImages";
+import { supabase } from "@/integrations/supabase/client";
 
 interface CollectibleImageProps {
   name: string;
@@ -52,6 +54,7 @@ const CollectibleImage = ({
   const [imageData, setImageData] = useState<ImageResult | null>(null);
   const [loading, setLoading] = useState(!userImage && !officialImageUrl);
   const [error, setError] = useState(false);
+  const [confirmed, setConfirmed] = useState(false);
 
   useEffect(() => {
     if (userImage || officialImageUrl) return;
@@ -91,6 +94,30 @@ const CollectibleImage = ({
     };
   }, [name, category, userImage, officialImageUrl, tcgSetId, cardNumber, officialCardId]);
 
+  const matchConfidence = officialImageUrl ? 'high' : (imageData?.matchConfidence || 'low');
+
+  const handleConfirm = useCallback(() => {
+    setConfirmed(true);
+    // Persist confirmed image to DB
+    if (collectionItemId && imageData?.imageUrl && !imageData.isFallback) {
+      supabase
+        .from('collection_items')
+        .update({
+          official_image_url: imageData.imageUrl,
+          official_image_source: imageData.source,
+          official_image_attribution: imageData.attribution,
+          official_image_source_url: imageData.sourceUrl,
+          official_card_id: imageData.cardId || undefined,
+          official_set_name: imageData.setName || undefined,
+          official_card_number: imageData.number || undefined,
+        })
+        .eq('id', collectionItemId)
+        .then(({ error: updateErr }) => {
+          if (updateErr) console.error('Failed to persist confirmed image:', updateErr);
+        });
+    }
+  }, [collectionItemId, imageData]);
+
   const displayImage = officialImageUrl || userImage || imageData?.imageUrl;
   const attribution = imageData?.attribution;
   const resolvedSource = source || imageData?.source;
@@ -120,7 +147,12 @@ const CollectibleImage = ({
         className={`${sizeClasses[size]} rounded-lg object-contain bg-secondary`}
         onError={() => setError(true)}
       />
-      {attribution && (
+      <ImageWatermark
+        matchConfidence={matchConfidence as 'high' | 'medium' | 'low'}
+        onConfirm={collectionItemId ? handleConfirm : undefined}
+        confirmed={confirmed}
+      />
+      {attribution && matchConfidence === 'high' && (
         <div className="absolute inset-x-0 bottom-0 rounded-b-lg bg-background/80 backdrop-blur-sm px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity">
           <p className="text-[9px] text-muted-foreground flex items-center gap-1">
             <ExternalLink size={8} />
