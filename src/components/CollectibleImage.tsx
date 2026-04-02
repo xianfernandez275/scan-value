@@ -1,8 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { ExternalLink } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import CategoryPlaceholder from "@/components/CategoryPlaceholder";
+import ImageWatermark from "@/components/ImageWatermark";
 import { fetchCollectibleImage, type ImageResult, type ImageSearchParams } from "@/lib/api/collectibleImages";
+import { supabase } from "@/integrations/supabase/client";
 
 interface CollectibleImageProps {
   name: string;
