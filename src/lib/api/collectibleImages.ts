@@ -10,6 +10,7 @@ export interface ImageResult {
   number?: string;
   isFallback?: boolean;
   reason?: string;
+  matchConfidence?: 'high' | 'medium' | 'low';
 }
 
 export interface ImageSearchParams {
