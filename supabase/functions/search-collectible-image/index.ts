@@ -251,6 +251,7 @@ async function searchMTGExact(req: SearchRequest): Promise<ImageResult | null> {
     cardId: card.id,
     setName: card.set_name || '',
     number: card.collector_number || '',
+    matchConfidence: 'medium' as const,
   };
 }
 
