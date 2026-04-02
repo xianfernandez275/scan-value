@@ -273,6 +273,7 @@ async function searchYuGiOhExact(req: SearchRequest): Promise<ImageResult | null
     cardId: String(card.id),
     setName: card.card_sets?.[0]?.set_name || '',
     number: card.card_sets?.[0]?.set_code || '',
+    matchConfidence: 'medium' as const,
   };
 }
 
