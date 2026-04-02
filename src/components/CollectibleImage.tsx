@@ -147,7 +147,12 @@ const CollectibleImage = ({
         className={`${sizeClasses[size]} rounded-lg object-contain bg-secondary`}
         onError={() => setError(true)}
       />
-      {attribution && (
+      <ImageWatermark
+        matchConfidence={matchConfidence as 'high' | 'medium' | 'low'}
+        onConfirm={collectionItemId ? handleConfirm : undefined}
+        confirmed={confirmed}
+      />
+      {attribution && matchConfidence === 'high' && (
         <div className="absolute inset-x-0 bottom-0 rounded-b-lg bg-background/80 backdrop-blur-sm px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity">
           <p className="text-[9px] text-muted-foreground flex items-center gap-1">
             <ExternalLink size={8} />
