@@ -293,6 +293,7 @@ async function searchComicVine(name: string): Promise<ImageResult | null> {
     source: 'Comic Vine',
     attribution: 'Data provided by Comic Vine (comicvine.gamespot.com)',
     sourceUrl: issue.site_detail_url || 'https://comicvine.gamespot.com',
+    matchConfidence: 'medium' as const,
   };
 }
 
