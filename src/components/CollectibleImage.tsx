@@ -54,6 +54,7 @@ const CollectibleImage = ({
   const [imageData, setImageData] = useState<ImageResult | null>(null);
   const [loading, setLoading] = useState(!userImage && !officialImageUrl);
   const [error, setError] = useState(false);
+  const [confirmed, setConfirmed] = useState(false);
 
   useEffect(() => {
     if (userImage || officialImageUrl) return;
@@ -92,6 +93,30 @@ const CollectibleImage = ({
       setLoading(false);
     };
   }, [name, category, userImage, officialImageUrl, tcgSetId, cardNumber, officialCardId]);
+
+  const matchConfidence = officialImageUrl ? 'high' : (imageData?.matchConfidence || 'low');
+
+  const handleConfirm = useCallback(() => {
+    setConfirmed(true);
+    // Persist confirmed image to DB
+    if (collectionItemId && imageData?.imageUrl && !imageData.isFallback) {
+      supabase
+        .from('collection_items')
+        .update({
+          official_image_url: imageData.imageUrl,
+          official_image_source: imageData.source,
+          official_image_attribution: imageData.attribution,
+          official_image_source_url: imageData.sourceUrl,
+          official_card_id: imageData.cardId || undefined,
+          official_set_name: imageData.setName || undefined,
+          official_card_number: imageData.number || undefined,
+        })
+        .eq('id', collectionItemId)
+        .then(({ error: updateErr }) => {
+          if (updateErr) console.error('Failed to persist confirmed image:', updateErr);
+        });
+    }
+  }, [collectionItemId, imageData]);
 
   const displayImage = officialImageUrl || userImage || imageData?.imageUrl;
   const attribution = imageData?.attribution;
