@@ -86,9 +86,11 @@ function normalizeCategory(raw: string): string {
   const cleaned = raw.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
   const map: Record<string, string[]> = {
     'Cartas': ['carta', 'cartas', 'card', 'cards', 'trading card', 'tcg'],
-    'Cómics': ['comic', 'comics', 'cómic', 'cómics', 'manga', 'graphic novel'],
+    'Cómics': ['comic', 'comics', 'comica', 'comicas', 'manga', 'graphic novel'],
     'Monedas': ['moneda', 'monedas', 'coin', 'coins'],
     'Juguetes': ['juguete', 'juguetes', 'toy', 'toys', 'funko', 'hot wheels'],
+    'Figuras': ['figura', 'figuras', 'figure', 'figures', 'action figure', 'statue', 'estatua'],
+    'Sellos': ['sello', 'sellos', 'stamp', 'stamps', 'estampilla'],
     'Vinilos': ['vinilo', 'vinilos', 'vinyl', 'record', 'lp', 'disco'],
   };
   for (const [canonical, aliases] of Object.entries(map)) {
