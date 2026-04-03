@@ -119,7 +119,10 @@ const CollectibleImage = ({
     }
   }, [collectionItemId, imageData]);
 
-  const displayImage = officialImageUrl || userImage || imageData?.imageUrl;
+  // Don't show fallback SVG data URIs — use category placeholder instead
+  const rawImage = officialImageUrl || userImage || imageData?.imageUrl;
+  const isFallbackSvg = rawImage?.startsWith('data:image/svg+xml') || imageData?.isFallback;
+  const displayImage = isFallbackSvg ? null : rawImage;
   const attribution = imageData?.attribution;
   const resolvedSource = source || imageData?.source;
   const resolvedSourceUrl = sourceUrl || imageData?.sourceUrl;
