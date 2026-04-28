@@ -4,6 +4,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { ThemeProvider } from "@/contexts/ThemeContext";
 import NavBar from "@/components/NavBar";
 import HomePage from "./pages/HomePage";
 import ScanPage from "./pages/ScanPage";
@@ -14,6 +15,7 @@ import CategoryMarketPage from "./pages/CategoryMarketPage";
 import SearchPage from "./pages/SearchPage";
 import AuthPage from "./pages/AuthPage";
 import PricingPage from "./pages/PricingPage";
+import SettingsPage from "./pages/SettingsPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -24,25 +26,26 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <AuthProvider>
-          <div className="dark">
-            <div className="min-h-screen bg-background text-foreground">
-              <Routes>
-                <Route path="/" element={<HomePage />} />
-                <Route path="/scan" element={<ScanPage />} />
-                <Route path="/results" element={<ResultsPage />} />
-                <Route path="/collection" element={<CollectionPage />} />
-                <Route path="/search" element={<SearchPage />} />
-                <Route path="/market" element={<MarketPage />} />
-                <Route path="/market/:categoryId" element={<CategoryMarketPage />} />
-                <Route path="/auth" element={<AuthPage />} />
-                <Route path="/pricing" element={<PricingPage />} />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-              <NavBar />
-            </div>
+        <ThemeProvider>
+          <AuthProvider>
+          <div className="min-h-screen bg-background text-foreground">
+            <Routes>
+              <Route path="/" element={<HomePage />} />
+              <Route path="/scan" element={<ScanPage />} />
+              <Route path="/results" element={<ResultsPage />} />
+              <Route path="/collection" element={<CollectionPage />} />
+              <Route path="/search" element={<SearchPage />} />
+              <Route path="/market" element={<MarketPage />} />
+              <Route path="/market/:categoryId" element={<CategoryMarketPage />} />
+              <Route path="/auth" element={<AuthPage />} />
+              <Route path="/pricing" element={<PricingPage />} />
+              <Route path="/settings" element={<SettingsPage />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+            <NavBar />
           </div>
-        </AuthProvider>
+          </AuthProvider>
+        </ThemeProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>

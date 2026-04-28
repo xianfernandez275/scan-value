@@ -5,7 +5,59 @@
 @tailwind utilities;
 
 @layer base {
+  /* LIGHT THEME (default :root) */
   :root {
+    --background: 40 30% 97%;
+    --foreground: 220 25% 12%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 220 25% 12%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 25% 12%;
+
+    --primary: 38 85% 45%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 40 20% 92%;
+    --secondary-foreground: 220 25% 18%;
+
+    --muted: 40 15% 90%;
+    --muted-foreground: 220 10% 40%;
+
+    --accent: 38 75% 50%;
+    --accent-foreground: 220 25% 12%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 15% 88%;
+    --input: 220 15% 88%;
+    --ring: 38 85% 45%;
+
+    --radius: 0.75rem;
+
+    --sidebar-background: 40 25% 95%;
+    --sidebar-foreground: 220 25% 12%;
+    --sidebar-primary: 38 85% 45%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 40 15% 90%;
+    --sidebar-accent-foreground: 220 25% 18%;
+    --sidebar-border: 220 15% 88%;
+    --sidebar-ring: 38 85% 45%;
+
+    --gold: 38 85% 45%;
+    --gold-dim: 38 60% 35%;
+    --gold-glow: 38 100% 55%;
+    --surface-glass: 0 0% 100%;
+    --gradient-gold: linear-gradient(135deg, hsl(38 85% 45%), hsl(45 95% 55%));
+    --gradient-dark: linear-gradient(180deg, hsl(40 30% 97%), hsl(40 20% 93%));
+    --shadow-gold: 0 4px 30px -8px hsl(38 85% 45% / 0.25);
+    --shadow-card: 0 8px 32px -12px hsl(220 25% 12% / 0.12);
+  }
+
+  /* DARK THEME */
+  .dark {
     --background: 220 20% 6%;
     --foreground: 40 20% 92%;
 
@@ -34,8 +86,6 @@
     --input: 220 15% 18%;
     --ring: 38 90% 55%;
 
-    --radius: 0.75rem;
-
     --sidebar-background: 220 18% 8%;
     --sidebar-foreground: 40 20% 92%;
     --sidebar-primary: 38 90% 55%;
@@ -45,7 +95,6 @@
     --sidebar-border: 220 15% 18%;
     --sidebar-ring: 38 90% 55%;
 
-    /* Custom tokens */
     --gold: 38 90% 55%;
     --gold-dim: 38 60% 35%;
     --gold-glow: 38 100% 65%;
