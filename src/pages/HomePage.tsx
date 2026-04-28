@@ -5,7 +5,6 @@ import heroImage from "@/assets/hero-collectibles.jpg";
 import { categories } from "@/lib/mockData";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
-import OptionsMenu from "@/components/OptionsMenu";
 import logoIcon from "@/assets/app-icon.png";
 
 const features = [
@@ -22,10 +21,6 @@ const HomePage = () => {
   const { user, isPremium } = useAuth();
   return (
     <div className="min-h-screen pb-24">
-      {/* Options menu top-right */}
-      <div className="absolute top-4 right-4 z-20">
-        <OptionsMenu />
-      </div>
 
       {/* Hero */}
       <section className="relative h-[70vh] min-h-[500px] overflow-hidden">
