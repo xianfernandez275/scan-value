@@ -8,6 +8,7 @@ import {
 import CategoryPlaceholder from "@/components/CategoryPlaceholder";
 import GradeSelector, { type GradeSelection, getGradeLabel, getGradeMultiplier } from "@/components/GradeSelector";
 import { Button } from "@/components/ui/button";
+import { getRarityColor } from "@/lib/rarityColors";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -170,7 +171,7 @@ const ItemDetailModal = ({ item, onClose, onDelete, onUpdateNotes, onUpdateGrade
 
           {/* Badges */}
           <div className="flex items-center gap-2 flex-wrap">
-            <Badge className="bg-primary/20 text-primary">{item.rarity}</Badge>
+            <Badge variant="outline" className={getRarityColor(item.rarity)}>{item.rarity}</Badge>
             <Badge variant="outline">{item.category}</Badge>
             {item.variant && <Badge variant="outline" className="text-[10px]">{item.variant}</Badge>}
             <span className="text-xs text-muted-foreground">· {item.year}</span>

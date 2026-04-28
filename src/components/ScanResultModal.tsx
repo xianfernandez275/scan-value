@@ -20,13 +20,7 @@ import type { IdentifyResponse, OfficialImage, MarketData } from "@/lib/api/iden
 
 /* ── helpers ─────────────────────────────────────────── */
 
-const rarityColor: Record<string, string> = {
-  "Común": "bg-muted text-muted-foreground",
-  "Poco Común": "bg-secondary text-secondary-foreground",
-  "Raro": "bg-blue-500/20 text-blue-400",
-  "Muy Raro": "bg-purple-500/20 text-purple-400",
-  "Ultra Raro": "bg-primary/20 text-primary",
-};
+import { getRarityColor } from "@/lib/rarityColors";
 
 const TrendIcon = ({ trend }: { trend?: string }) => {
   if (trend === "up") return <TrendingUp size={14} className="text-green-400" />;
@@ -272,7 +266,7 @@ const ScanResultModal = ({ open, onClose, result, userPhoto, onResultUpdate }: S
             {/* ── item info card ─── */}
             <div className="space-y-3">
               <div className="flex items-center gap-2 flex-wrap">
-                <Badge className={rarityColor[id.rarity] || "bg-muted text-muted-foreground"}>{id.rarity}</Badge>
+                <Badge variant="outline" className={getRarityColor(id.rarity)}>{id.rarity}</Badge>
                 {id.variant && <Badge variant="outline" className="text-[10px]">{id.variant}</Badge>}
               </div>
 
