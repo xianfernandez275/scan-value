@@ -164,7 +164,7 @@ const NavBar = () => {
 };
 
 interface SheetActionProps {
-  icon: React.ComponentType<{ size?: number; className?: string }>;
+  icon: React.ElementType;
   label: string;
   onClick: () => void;
   highlight?: boolean;
