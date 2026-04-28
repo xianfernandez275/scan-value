@@ -12,6 +12,7 @@ import { getGradeLabel } from "@/components/GradeSelector";
 import { useAuth } from "@/contexts/AuthContext";
 import UsageBanner from "@/components/UsageBanner";
 import { useNavigate } from "react-router-dom";
+import { getRarityColor } from "@/lib/rarityColors";
 
 const CollectionThumbnail = ({ item }: { item: CollectionItem }) => {
   return (

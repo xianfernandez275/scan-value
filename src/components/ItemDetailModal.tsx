@@ -8,6 +8,7 @@ import {
 import CategoryPlaceholder from "@/components/CategoryPlaceholder";
 import GradeSelector, { type GradeSelection, getGradeLabel, getGradeMultiplier } from "@/components/GradeSelector";
 import { Button } from "@/components/ui/button";
+import { getRarityColor } from "@/lib/rarityColors";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";

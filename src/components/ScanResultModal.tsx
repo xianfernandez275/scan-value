@@ -266,7 +266,7 @@ const ScanResultModal = ({ open, onClose, result, userPhoto, onResultUpdate }: S
             {/* ── item info card ─── */}
             <div className="space-y-3">
               <div className="flex items-center gap-2 flex-wrap">
-                <Badge className={rarityColor[id.rarity] || "bg-muted text-muted-foreground"}>{id.rarity}</Badge>
+                <Badge variant="outline" className={getRarityColor(id.rarity)}>{id.rarity}</Badge>
                 {id.variant && <Badge variant="outline" className="text-[10px]">{id.variant}</Badge>}
               </div>
 
