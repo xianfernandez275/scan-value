@@ -1,10 +1,11 @@
 import { motion } from "framer-motion";
-import { Camera, Search, Sparkles, TrendingUp, Shield, Zap, Crown, User } from "lucide-react";
+import { Camera, Search, Sparkles, TrendingUp, Shield, Zap } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import heroImage from "@/assets/hero-collectibles.jpg";
 import { categories } from "@/lib/mockData";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
+import OptionsMenu from "@/components/OptionsMenu";
 import logoIcon from "@/assets/app-icon.png";
 
 const features = [
@@ -21,19 +22,9 @@ const HomePage = () => {
   const { user, isPremium } = useAuth();
   return (
     <div className="min-h-screen pb-24">
-      {/* Auth button top-right */}
+      {/* Options menu top-right */}
       <div className="absolute top-4 right-4 z-20">
-        {user ? (
-          <Button variant="outline" size="sm" className="gap-2" onClick={() => navigate("/pricing")}>
-            <Crown size={16} />
-            {isPremium ? "Premium" : "Mi Cuenta"}
-          </Button>
-        ) : (
-          <Button variant="outline" size="sm" className="gap-2" onClick={() => navigate("/auth")}>
-            <User size={16} />
-            Iniciar Sesión
-          </Button>
-        )}
+        <OptionsMenu />
       </div>
 
       {/* Hero */}
