@@ -20,13 +20,7 @@ import type { IdentifyResponse, OfficialImage, MarketData } from "@/lib/api/iden
 
 /* ── helpers ─────────────────────────────────────────── */
 
-const rarityColor: Record<string, string> = {
-  "Común": "bg-muted text-muted-foreground",
-  "Poco Común": "bg-secondary text-secondary-foreground",
-  "Raro": "bg-blue-500/20 text-blue-400",
-  "Muy Raro": "bg-purple-500/20 text-purple-400",
-  "Ultra Raro": "bg-primary/20 text-primary",
-};
+import { getRarityColor } from "@/lib/rarityColors";
 
 const TrendIcon = ({ trend }: { trend?: string }) => {
   if (trend === "up") return <TrendingUp size={14} className="text-green-400" />;

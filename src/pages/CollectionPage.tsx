@@ -178,7 +178,9 @@ const CollectionPage = () => {
                       {(item.grading_company || item.grading_value) && (
                         <Badge variant="secondary" className="text-[9px]">{getGradeLabel(item.grading_company, item.grading_value)}</Badge>
                       )}
-                      <Badge variant="outline" className="text-[9px]">{item.rarity}</Badge>
+                      {item.rarity && (
+                        <Badge variant="outline" className={`text-[9px] ${getRarityColor(item.rarity)}`}>{item.rarity}</Badge>
+                      )}
                     </div>
                   </div>
                 </motion.div>
