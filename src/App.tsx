@@ -4,6 +4,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { ThemeProvider } from "@/contexts/ThemeContext";
 import NavBar from "@/components/NavBar";
 import HomePage from "./pages/HomePage";
 import ScanPage from "./pages/ScanPage";
@@ -14,6 +15,7 @@ import CategoryMarketPage from "./pages/CategoryMarketPage";
 import SearchPage from "./pages/SearchPage";
 import AuthPage from "./pages/AuthPage";
 import PricingPage from "./pages/PricingPage";
+import SettingsPage from "./pages/SettingsPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -24,7 +26,8 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <AuthProvider>
+        <ThemeProvider>
+          <AuthProvider>
           <div className="dark">
             <div className="min-h-screen bg-background text-foreground">
               <Routes>
