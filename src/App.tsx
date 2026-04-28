@@ -28,24 +28,24 @@ const App = () => (
       <BrowserRouter>
         <ThemeProvider>
           <AuthProvider>
-          <div className="dark">
-            <div className="min-h-screen bg-background text-foreground">
-              <Routes>
-                <Route path="/" element={<HomePage />} />
-                <Route path="/scan" element={<ScanPage />} />
-                <Route path="/results" element={<ResultsPage />} />
-                <Route path="/collection" element={<CollectionPage />} />
-                <Route path="/search" element={<SearchPage />} />
-                <Route path="/market" element={<MarketPage />} />
-                <Route path="/market/:categoryId" element={<CategoryMarketPage />} />
-                <Route path="/auth" element={<AuthPage />} />
-                <Route path="/pricing" element={<PricingPage />} />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-              <NavBar />
-            </div>
+          <div className="min-h-screen bg-background text-foreground">
+            <Routes>
+              <Route path="/" element={<HomePage />} />
+              <Route path="/scan" element={<ScanPage />} />
+              <Route path="/results" element={<ResultsPage />} />
+              <Route path="/collection" element={<CollectionPage />} />
+              <Route path="/search" element={<SearchPage />} />
+              <Route path="/market" element={<MarketPage />} />
+              <Route path="/market/:categoryId" element={<CategoryMarketPage />} />
+              <Route path="/auth" element={<AuthPage />} />
+              <Route path="/pricing" element={<PricingPage />} />
+              <Route path="/settings" element={<SettingsPage />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+            <NavBar />
           </div>
-        </AuthProvider>
+          </AuthProvider>
+        </ThemeProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
