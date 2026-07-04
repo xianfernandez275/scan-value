@@ -54,7 +54,10 @@ async function fetchRecommendations(): Promise<RecommendationsResponse> {
   const { data, error } = await supabase.functions.invoke("search-collectibles", {
     body: { mode: "recommendations", historyContext: ctx },
   });
-  if (error) throw error;
+  if (error || data?.error) {
+    console.warn("Recommendations unavailable:", error?.message || data?.error);
+    return { recommendations: [], contextLabel: "Recomendaciones no disponibles" };
+  }
   return {
     recommendations: (data?.recommendations || []).map((r: any, i: number) => ({
       id: r.id || `rec-${i}`,
