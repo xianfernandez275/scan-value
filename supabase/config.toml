@@ -1,10 +1,13 @@
 project_id = "hvfqtgywgtikekqnmxpx"
 
 [functions.search-collectible-image]
-verify_jwt = false
+verify_jwt = true
 
 [functions.identify-collectible]
-verify_jwt = false
+verify_jwt = true
 
 [functions.api-health-check]
-verify_jwt = false
+verify_jwt = true
+
+[functions.delete-account]
+verify_jwt = true

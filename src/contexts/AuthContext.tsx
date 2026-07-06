@@ -14,10 +14,10 @@ interface AuthContextType {
   profile: Profile | null;
   loading: boolean;
   isPremium: boolean;
+  scansUsed: number;
   scansRemaining: number;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
-  incrementScanCount: () => Promise<void>;
 }
 
 const FREE_SCAN_LIMIT = 10;
@@ -40,41 +40,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   const fetchProfile = async (userId: string) => {
-    const now = new Date();
     const { data } = await supabase
       .from("profiles")
       .select("plan, scans_used_this_month, scans_month_reset")
       .eq("id", userId)
       .single();
 
-    if (data) {
-      // Reset scan count if month has passed
-      const resetDate = new Date(data.scans_month_reset);
-      if (now >= resetDate) {
-        const nextReset = new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString();
-        await supabase
-          .from("profiles")
-          .update({ scans_used_this_month: 0, scans_month_reset: nextReset })
-          .eq("id", userId);
-        setProfile({ ...data, plan: data.plan as "free" | "premium", scans_used_this_month: 0, scans_month_reset: nextReset });
-      } else {
-        setProfile(data as Profile);
-      }
-    }
+    if (data) setProfile(data as Profile);
   };
 
   const refreshProfile = async () => {
     if (user) await fetchProfile(user.id);
-  };
-
-  const incrementScanCount = async () => {
-    if (!user || !profile) return;
-    const newCount = profile.scans_used_this_month + 1;
-    await supabase
-      .from("profiles")
-      .update({ scans_used_this_month: newCount })
-      .eq("id", user.id);
-    setProfile((p) => p ? { ...p, scans_used_this_month: newCount } : p);
   };
 
   const signOut = async () => {
@@ -109,11 +85,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const isPremium = profile?.plan === "premium";
-  const scansRemaining = isPremium ? Infinity : Math.max(0, FREE_SCAN_LIMIT - (profile?.scans_used_this_month || 0));
+  // The counter is server-managed (reset + increment happen in the
+  // identify-collectible function); past the reset date we display it as 0.
+  const monthElapsed = profile ? new Date() >= new Date(profile.scans_month_reset) : false;
+  const scansUsed = monthElapsed ? 0 : profile?.scans_used_this_month || 0;
+  const scansRemaining = isPremium ? Infinity : Math.max(0, FREE_SCAN_LIMIT - scansUsed);
 
   return (
     <AuthContext.Provider
-      value={{ user, session, profile, loading, isPremium, scansRemaining, signOut, refreshProfile, incrementScanCount }}
+      value={{ user, session, profile, loading, isPremium, scansUsed, scansRemaining, signOut, refreshProfile }}
     >
       {children}
     </AuthContext.Provider>

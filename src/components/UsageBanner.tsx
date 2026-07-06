@@ -10,13 +10,13 @@ interface UsageBannerProps {
 }
 
 const UsageBanner = ({ type, currentCount }: UsageBannerProps) => {
-  const { isPremium, scansRemaining, profile, user } = useAuth();
+  const { isPremium, scansUsed, user } = useAuth();
   const navigate = useNavigate();
 
   if (isPremium || !user) return null;
 
   const limit = type === "scan" ? FREE_SCAN_LIMIT : FREE_COLLECTION_LIMIT;
-  const used = type === "scan" ? (profile?.scans_used_this_month || 0) : (currentCount || 0);
+  const used = type === "scan" ? scansUsed : (currentCount || 0);
   const percentage = Math.min((used / limit) * 100, 100);
   const isNearLimit = percentage >= 80;
   const isAtLimit = used >= limit;
