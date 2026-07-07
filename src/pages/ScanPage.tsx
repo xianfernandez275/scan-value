@@ -16,7 +16,7 @@ const ScanPage = () => {
   const [showResultModal, setShowResultModal] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
-  const { user, scansRemaining, isPremium, incrementScanCount } = useAuth();
+  const { user, scansRemaining, isPremium, refreshProfile } = useAuth();
 
   const handleFile = useCallback((file: File) => {
     const reader = new FileReader();
@@ -51,7 +51,8 @@ const ScanPage = () => {
       const result = await identifyCollectible(image);
 
       if (result.success && result.identification) {
-        await incrementScanCount();
+        // The server already counted the scan; re-read the profile to reflect it
+        await refreshProfile();
         setScanResult(result);
         setShowResultModal(true);
       } else {
@@ -60,7 +61,14 @@ const ScanPage = () => {
     } catch (err: any) {
       console.error("Scan error:", err);
       const msg = err?.message || String(err);
-      if (msg.includes('Rate limit') || msg.includes('RATE_LIMIT')) {
+      if (msg.includes('SCAN_LIMIT_REACHED')) {
+        await refreshProfile();
+        toast.error("Has alcanzado el límite de escaneos. Mejora a Premium para escaneos ilimitados.");
+        navigate("/pricing");
+      } else if (msg.includes('AUTH_REQUIRED')) {
+        toast.error("Inicia sesión para escanear artículos");
+        navigate("/auth");
+      } else if (msg.includes('Rate limit') || msg.includes('RATE_LIMIT')) {
         toast.error("Demasiadas solicitudes. Espera un momento e intenta de nuevo.");
       } else if (msg.includes('credits') || msg.includes('CREDITS')) {
         toast.error("Créditos de IA agotados.");

@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useAuth, FREE_SCAN_LIMIT } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
+import { supabase } from "@/integrations/supabase/client";
 
 const STORAGE_PREFS = "colecscan-prefs";
 
@@ -28,7 +29,7 @@ const defaultPrefs: Prefs = { language: "es", currency: "USD", notifications: tr
 
 const SettingsPage = () => {
   const navigate = useNavigate();
-  const { user, profile, isPremium, signOut } = useAuth();
+  const { user, isPremium, scansUsed, signOut } = useAuth();
   const { theme, setTheme } = useTheme();
 
   const [prefs, setPrefs] = useState<Prefs>(() => {
@@ -50,7 +51,23 @@ const SettingsPage = () => {
     navigate("/");
   };
 
-  const scansUsed = profile?.scans_used_this_month || 0;
+  const [deleting, setDeleting] = useState(false);
+  const handleDeleteAccount = async () => {
+    setDeleting(true);
+    try {
+      const { error } = await supabase.functions.invoke("delete-account");
+      if (error) throw error;
+      await signOut();
+      toast.success("Tu cuenta y todos tus datos han sido eliminados");
+      navigate("/");
+    } catch (e) {
+      console.error("delete-account error:", e);
+      toast.error("No se pudo eliminar la cuenta. Inténtalo de nuevo.");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const scansPct = isPremium ? 100 : Math.min(100, (scansUsed / FREE_SCAN_LIMIT) * 100);
 
   return (
@@ -95,17 +112,18 @@ const SettingsPage = () => {
                   <AlertDialogHeader>
                     <AlertDialogTitle>¿Eliminar tu cuenta?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      Esta acción es permanente. Se eliminarán tu colección y datos asociados.
-                      Para completar la eliminación, contacta con soporte.
+                      Esta acción es permanente e inmediata: se eliminarán tu cuenta,
+                      tu colección y todos tus datos asociados. No se puede deshacer.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel>Cancelar</AlertDialogCancel>
                     <AlertDialogAction
                       className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                      onClick={() => toast.info("Solicitud enviada. Te contactaremos por email.")}
+                      disabled={deleting}
+                      onClick={handleDeleteAccount}
                     >
-                      Solicitar eliminación
+                      {deleting ? "Eliminando..." : "Eliminar definitivamente"}
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
@@ -221,8 +239,8 @@ const SettingsPage = () => {
 
         {/* PRIVACIDAD Y SOPORTE */}
         <Section title="Privacidad y soporte" icon={Shield}>
-          <LinkRow icon={Shield} label="Política de privacidad" onClick={() => toast.info("Próximamente")} />
-          <LinkRow icon={FileText} label="Términos de servicio" onClick={() => toast.info("Próximamente")} />
+          <LinkRow icon={Shield} label="Política de privacidad" onClick={() => navigate("/privacy")} />
+          <LinkRow icon={FileText} label="Términos de servicio" onClick={() => navigate("/terms")} />
           <LinkRow icon={HelpCircle} label="Centro de ayuda" onClick={() => toast.info("Próximamente")} />
           <LinkRow icon={Info} label="Versión" right="1.0.0" />
         </Section>

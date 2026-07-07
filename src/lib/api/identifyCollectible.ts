@@ -46,18 +46,35 @@ export interface IdentifyResponse {
   needsConfirmation: boolean;
   provider?: string;
   marketData?: MarketData;
+  scansRemaining?: number | null;
   error?: string;
 }
 
-export async function identifyCollectible(imageBase64: string): Promise<IdentifyResponse> {
-  const { data, error } = await supabase.functions.invoke('identify-collectible', {
-    body: { imageBase64 },
-  });
+// On non-2xx responses supabase-js hides the body behind error.context, so we
+// read it to surface server error codes like SCAN_LIMIT_REACHED.
+async function invokeIdentify(body: Record<string, unknown>): Promise<IdentifyResponse> {
+  const { data, error } = await supabase.functions.invoke('identify-collectible', { body });
 
-  if (error) throw new Error(error.message || 'Failed to identify collectible');
+  if (error) {
+    let message = error.message || 'Failed to identify collectible';
+    const ctx = (error as { context?: Response }).context;
+    if (ctx && typeof ctx.json === 'function') {
+      try {
+        const errBody = await ctx.json();
+        if (errBody?.error) message = errBody.error;
+      } catch {
+        // keep the generic message
+      }
+    }
+    throw new Error(message);
+  }
   if (data?.error) throw new Error(data.error);
 
   return data as IdentifyResponse;
+}
+
+export async function identifyCollectible(imageBase64: string): Promise<IdentifyResponse> {
+  return invokeIdentify({ imageBase64 });
 }
 
 export interface CoinRefinementParams {
@@ -72,15 +89,8 @@ export async function refineCoinIdentification(
   params: CoinRefinementParams,
   originalIdentification: IdentificationResult,
 ): Promise<IdentifyResponse> {
-  const { data, error } = await supabase.functions.invoke('identify-collectible', {
-    body: {
-      coinRefinement: params,
-      identification: originalIdentification,
-    },
+  return invokeIdentify({
+    coinRefinement: params,
+    identification: originalIdentification,
   });
-
-  if (error) throw new Error(error.message || 'Failed to refine coin identification');
-  if (data?.error) throw new Error(data.error);
-
-  return data as IdentifyResponse;
 }

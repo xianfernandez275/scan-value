@@ -25,10 +25,60 @@
  * ───────────────────────────────────────────────────────────────────────────
  */
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
-};
+import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2';
+
+// Free plan scan quota, enforced server-side via the consume_scan_credit RPC.
+const FREE_SCAN_LIMIT = 10;
+
+// Comma-separated list of allowed origins (set as an Edge Function secret).
+// When unset the function stays open to any origin: verify_jwt + the per-user
+// credit check are the real barriers; CORS here is defense in depth.
+const ALLOWED_ORIGINS = (Deno.env.get('ALLOWED_ORIGINS') ?? '')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
+
+function buildCorsHeaders(origin: string | null): Record<string, string> {
+  const allowOrigin = ALLOWED_ORIGINS.length === 0
+    ? '*'
+    : (origin && ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0]);
+  return {
+    'Access-Control-Allow-Origin': allowOrigin,
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
+    ...(ALLOWED_ORIGINS.length > 0 ? { Vary: 'Origin' } : {}),
+  };
+}
+
+let adminClient: SupabaseClient | null = null;
+function getAdminClient(): SupabaseClient {
+  if (!adminClient) {
+    adminClient = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+      { auth: { persistSession: false } },
+    );
+  }
+  return adminClient;
+}
+
+async function getRequestUser(req: Request) {
+  const token = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '');
+  if (!token) return null;
+  const { data, error } = await getAdminClient().auth.getUser(token);
+  if (error || !data?.user) return null;
+  return data.user;
+}
+
+async function refundScanCredit(userId: string) {
+  const { error } = await getAdminClient().rpc('refund_scan_credit', { p_user_id: userId });
+  if (error) logError('main', 'refund_scan_credit failed', error);
+}
+
+// API keys travel as query params for some providers (e.g. Comic Vine); keep
+// them out of the logs.
+function redactSecrets(text: string): string {
+  return text.replace(/((?:api_key|apikey|token|key)=)[^&\s"]+/gi, '$1***');
+}
 
 // ─── Diagnostic Logger ──────────────────────────────────────────────────────
 
@@ -46,7 +96,7 @@ function logError(provider: string, message: string, error?: any) {
 
 function logApiCall(provider: string, url: string, status: number, resultCount: number, hasData: boolean, dataPreview?: string) {
   const statusEmoji = status >= 200 && status < 300 ? '✅' : '⚠️';
-  log(provider, `${statusEmoji} status=${status} | results=${resultCount} | url=${url.substring(0, 120)}... | hasData=${hasData}${dataPreview ? ` | preview=${dataPreview.substring(0, 200)}` : ''}`);
+  log(provider, `${statusEmoji} status=${status} | results=${resultCount} | url=${redactSecrets(url).substring(0, 120)}... | hasData=${hasData}${dataPreview ? ` | preview=${dataPreview.substring(0, 200)}` : ''}`);
 }
 
 function getResultCount(data: any): number {
@@ -68,7 +118,7 @@ function previewResponse(data: any): string {
 function logProviderQuery(provider: string, identification: Partial<Identification>, query: string, url: string) {
   log(
     provider,
-    `Provider="${provider}" | category="${identification.category || 'N/A'}" | subcategory="${identification.subcategory || 'N/A'}" | query="${query}" | url="${url}"`
+    `Provider="${provider}" | category="${identification.category || 'N/A'}" | subcategory="${identification.subcategory || 'N/A'}" | query="${query}" | url="${redactSecrets(url)}"`
   );
 }
 
@@ -174,7 +224,7 @@ async function robustFetch(provider: string, url: string, options: RequestInit =
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
   
   try {
-    log(provider, `→ FETCH ${url.substring(0, 150)}`);
+    log(provider, `→ FETCH ${redactSecrets(url).substring(0, 150)}`);
     const res = await fetch(url, { ...options, signal: controller.signal });
     clearTimeout(timeout);
     
@@ -188,7 +238,7 @@ async function robustFetch(provider: string, url: string, options: RequestInit =
     
     if (!res.ok) {
       const error = `HTTP ${res.status}`;
-      logError(provider, `${error} from ${url.substring(0, 80)}`, responsePreview);
+      logError(provider, `${error} from ${redactSecrets(url).substring(0, 80)}`, responsePreview);
       return { ok: false, status: res.status, data, error, responsePreview, resultCount };
     }
     
@@ -197,11 +247,11 @@ async function robustFetch(provider: string, url: string, options: RequestInit =
     clearTimeout(timeout);
     if (e.name === 'AbortError') {
       const error = `Timeout after ${timeoutMs}ms`;
-      logError(provider, `TIMEOUT (${timeoutMs}ms) for ${url.substring(0, 80)}`);
+      logError(provider, `TIMEOUT (${timeoutMs}ms) for ${redactSecrets(url).substring(0, 80)}`);
       return { ok: false, status: 0, data: null, error, responsePreview: '', resultCount: 0 };
     }
     const error = e instanceof Error ? e.message : 'Network error';
-    logError(provider, `NETWORK ERROR for ${url.substring(0, 80)}`, e);
+    logError(provider, `NETWORK ERROR for ${redactSecrets(url).substring(0, 80)}`, e);
     return { ok: false, status: 0, data: null, error, responsePreview: '', resultCount: 0 };
   }
 }
@@ -1004,14 +1054,29 @@ function buildResponse(
 // ─── Main Handler ───────────────────────────────────────────────────────────
 
 Deno.serve(async (req) => {
+  const corsHeaders = buildCorsHeaders(req.headers.get('origin'));
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Credit accounting: refunded on any failure after consumption
+  let creditUserId: string | null = null;
+  let creditConsumed = false;
+
   try {
     log('main', '═══════════════════════════════════════════════');
     log('main', 'New request received');
-    
+
+    // verify_jwt only checks the token signature (the public anon key also
+    // passes), so we additionally require a real authenticated user.
+    const user = await getRequestUser(req);
+    if (!user) {
+      return new Response(JSON.stringify({ error: 'AUTH_REQUIRED' }), {
+        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    creditUserId = user.id;
+
     // Check all API keys on every request
     const keyStatus = checkApiKeys();
     const missingKeys = keyStatus.filter(k => !k.configured && k.required);
@@ -1053,10 +1118,25 @@ Deno.serve(async (req) => {
     log('main', `Mode: Image identification | imageBase64 length: ${imageBase64.length}`);
     const base64Data = imageBase64.replace(/^data:image\/[a-z]+;base64,/, '');
 
+    // Atomic server-side quota check + increment (see security_hardening migration)
+    const { data: credit, error: creditError } = await getAdminClient()
+      .rpc('consume_scan_credit', { p_user_id: user.id, p_free_limit: FREE_SCAN_LIMIT });
+    if (creditError) throw new Error(`consume_scan_credit failed: ${creditError.message}`);
+    if (!credit?.allowed) {
+      log('main', `Scan denied for user ${user.id}: ${credit?.reason}`);
+      return new Response(JSON.stringify({ error: credit?.reason ?? 'SCAN_LIMIT_REACHED', scansRemaining: 0 }), {
+        status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    creditConsumed = true;
+    const scansRemaining: number | null = credit.scans_remaining ?? null;
+
     let identification: Identification;
     try {
       identification = await identifyWithAI(base64Data, LOVABLE_API_KEY);
     } catch (e: any) {
+      await refundScanCredit(user.id);
+      creditConsumed = false;
       if (e.message === 'RATE_LIMIT') {
         return new Response(JSON.stringify({ error: 'Rate limit exceeded. Please try again shortly.' }), {
           status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -1076,11 +1156,12 @@ Deno.serve(async (req) => {
     const response = buildResponse(identification, exactMatch, candidates);
 
     log('main', `✅ Request complete. Provider: ${response.provider || 'none'}, hasImage: ${!!response.officialImage}`);
-    return new Response(JSON.stringify(response), {
+    return new Response(JSON.stringify({ ...response, scansRemaining }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {
     logError('main', 'Unhandled error', error);
+    if (creditConsumed && creditUserId) await refundScanCredit(creditUserId);
     return new Response(JSON.stringify({
       error: error instanceof Error ? error.message : 'Unknown error',
     }), {
