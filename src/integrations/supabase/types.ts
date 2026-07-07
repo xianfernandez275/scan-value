@@ -40,7 +40,7 @@ export type Database = {
           set_or_edition: string | null
           special_features: string[] | null
           tcg_set_id: string | null
-          user_id: string | null
+          user_id: string
           user_photo_url: string | null
           variant: string | null
           year: number | null
@@ -70,7 +70,7 @@ export type Database = {
           set_or_edition?: string | null
           special_features?: string[] | null
           tcg_set_id?: string | null
-          user_id?: string | null
+          user_id: string
           user_photo_url?: string | null
           variant?: string | null
           year?: number | null
@@ -100,7 +100,7 @@ export type Database = {
           set_or_edition?: string | null
           special_features?: string[] | null
           tcg_set_id?: string | null
-          user_id?: string | null
+          user_id?: string
           user_photo_url?: string | null
           variant?: string | null
           year?: number | null
@@ -136,7 +136,11 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      consume_scan_credit: {
+        Args: { p_free_limit?: number; p_user_id: string }
+        Returns: Json
+      }
+      refund_scan_credit: { Args: { p_user_id: string }; Returns: undefined }
     }
     Enums: {
       [_ in never]: never
