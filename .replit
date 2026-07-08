@@ -5,3 +5,14 @@ modules = ["nodejs-20"]
 [[ports]]
 localPort = 8080
 externalPort = 80
+
+[workflows]
+runButton = "App"
+
+[[workflows.workflow]]
+name = "App"
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npm run dev"
