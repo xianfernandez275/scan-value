@@ -1,0 +1,7 @@
+run = "npm run dev"
+entrypoint = "src/main.tsx"
+modules = ["nodejs-20"]
+
+[[ports]]
+localPort = 8080
+externalPort = 80
