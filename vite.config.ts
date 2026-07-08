@@ -9,6 +9,11 @@ export default defineConfig(({ mode }) => ({
     host: "0.0.0.0",
     port: 8080,
     allowedHosts: [".replit.dev"],
+    watch: {
+      // Replit's HOME lives inside the workspace and inotify watchers are
+      // scarce there; skip everything vite doesn't serve.
+      ignored: ["**/ios/**", "**/.local/**", "**/.cache/**", "**/dist/**", "**/supabase/**"],
+    },
     hmr: {
       overlay: false,
     },
