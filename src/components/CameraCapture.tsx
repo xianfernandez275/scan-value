@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Loader2, RefreshCw } from "lucide-react";
+import { Loader2, RefreshCw, X } from "lucide-react";
 
 interface CameraCaptureProps {
   open: boolean;
@@ -138,10 +138,10 @@ const CameraCapture = ({ open, onCapture, onClose }: CameraCaptureProps) => {
 
         <button
           onClick={onClose}
-          aria-label="Cancelar"
-          className="text-sm font-medium text-white/90"
+          aria-label="Cerrar cámara"
+          className="flex h-11 w-11 items-center justify-center rounded-full bg-white/15 text-white"
         >
-          Cancelar
+          <X size={20} />
         </button>
       </div>
     </div>
