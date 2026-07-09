@@ -26,13 +26,19 @@ const AuthPage = () => {
         toast.success("¡Bienvenido de vuelta!");
         navigate("/");
       } else {
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: { emailRedirectTo: window.location.origin },
         });
         if (error) throw error;
-        toast.success("Revisa tu correo para confirmar tu cuenta");
+        if (data.session) {
+          // Auto-confirm is enabled: the session is ready, go straight in.
+          toast.success("¡Cuenta creada! Bienvenido.");
+          navigate("/");
+        } else {
+          toast.success("Revisa tu correo para confirmar tu cuenta");
+        }
       }
     } catch (err: any) {
       toast.error(err.message || "Error de autenticación");
