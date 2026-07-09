@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Camera, X, Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { X, Loader2 } from "lucide-react";
 
 interface CameraCaptureProps {
   open: boolean;
@@ -119,15 +118,15 @@ const CameraCapture = ({ open, onCapture, onClose }: CameraCaptureProps) => {
       </div>
 
       {status === "ready" && (
-        <div className="flex items-center justify-center p-6">
-          <Button
-            size="lg"
+        <div className="flex items-center justify-center pb-10 pt-6">
+          {/* Classic camera shutter: white inner disc inside an outer ring */}
+          <button
             onClick={takePhoto}
-            className="h-16 w-16 rounded-full p-0"
             aria-label="Tomar foto"
+            className="flex h-[74px] w-[74px] items-center justify-center rounded-full border-4 border-white/90 transition-transform active:scale-90"
           >
-            <Camera size={26} />
-          </Button>
+            <span className="h-[58px] w-[58px] rounded-full bg-white" />
+          </button>
         </div>
       )}
     </div>
