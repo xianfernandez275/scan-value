@@ -79,7 +79,7 @@ const CameraCapture = ({ open, onCapture, onClose }: CameraCaptureProps) => {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[60] flex flex-col bg-black">
+    <div className="fixed inset-0 z-[60] flex flex-row bg-black">
       {/* Live preview fills all available space */}
       <div className="relative flex-1 overflow-hidden">
         <video
@@ -114,34 +114,34 @@ const CameraCapture = ({ open, onCapture, onClose }: CameraCaptureProps) => {
         )}
       </div>
 
-      {/* Bottom control bar: cancel · shutter · flip */}
-      <div className="grid grid-cols-3 items-center bg-black px-8 pb-[max(env(safe-area-inset-bottom),1.5rem)] pt-5">
+      {/* Right control column: flip (top) · shutter (center) · cancel (bottom) */}
+      <div className="flex w-28 flex-col items-center justify-between bg-black py-8 pr-[max(env(safe-area-inset-right),0.5rem)]">
         <button
-          onClick={onClose}
-          aria-label="Cancelar"
-          className="justify-self-start text-base font-medium text-white/90"
+          onClick={() => setFacingMode((m) => (m === "environment" ? "user" : "environment"))}
+          aria-label="Girar cámara"
+          className="flex h-11 w-11 items-center justify-center rounded-full bg-white/15 text-white"
         >
-          Cancelar
+          <RefreshCw size={20} />
         </button>
 
         {status === "ready" ? (
           <button
             onClick={takePhoto}
             aria-label="Tomar foto"
-            className="justify-self-center flex h-[74px] w-[74px] items-center justify-center rounded-full border-4 border-white/90 transition-transform active:scale-90"
+            className="flex h-[74px] w-[74px] items-center justify-center rounded-full border-4 border-white/90 transition-transform active:scale-90"
           >
             <span className="h-[58px] w-[58px] rounded-full bg-white" />
           </button>
         ) : (
-          <span className="justify-self-center h-[74px] w-[74px]" />
+          <span className="h-[74px] w-[74px]" />
         )}
 
         <button
-          onClick={() => setFacingMode((m) => (m === "environment" ? "user" : "environment"))}
-          aria-label="Girar cámara"
-          className="justify-self-end flex h-11 w-11 items-center justify-center rounded-full bg-white/15 text-white"
+          onClick={onClose}
+          aria-label="Cancelar"
+          className="text-sm font-medium text-white/90"
         >
-          <RefreshCw size={20} />
+          Cancelar
         </button>
       </div>
     </div>
