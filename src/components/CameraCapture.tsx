@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { X, Loader2 } from "lucide-react";
+import { Loader2, RefreshCw } from "lucide-react";
 
 interface CameraCaptureProps {
   open: boolean;
@@ -10,10 +10,13 @@ interface CameraCaptureProps {
 // In-app camera using getUserMedia. The live stream stays inside the page, so
 // (unlike <input capture>) the browser tab is never backgrounded/reloaded when
 // taking a photo — which is what caused the "reload to home" loop on tablets.
+// The layout mirrors a native phone camera app: fullscreen preview with a
+// bottom control bar (cancel · shutter · flip).
 const CameraCapture = ({ open, onCapture, onClose }: CameraCaptureProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
+  const [facingMode, setFacingMode] = useState<"environment" | "user">("environment");
 
   useEffect(() => {
     if (!open) return;
@@ -23,7 +26,7 @@ const CameraCapture = ({ open, onCapture, onClose }: CameraCaptureProps) => {
       setStatus("loading");
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: "environment" } },
+          video: { facingMode: { ideal: facingMode } },
           audio: false,
         });
         if (cancelled) {
@@ -48,7 +51,7 @@ const CameraCapture = ({ open, onCapture, onClose }: CameraCaptureProps) => {
       streamRef.current?.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
     };
-  }, [open]);
+  }, [open, facingMode]);
 
   const takePhoto = () => {
     const video = videoRef.current;
@@ -64,8 +67,7 @@ const CameraCapture = ({ open, onCapture, onClose }: CameraCaptureProps) => {
     onCapture(canvas.toDataURL("image/jpeg", 0.82));
   };
 
-  // Fallback for devices/browsers without a usable camera (e.g. some desktops):
-  // the OS file picker with capture hint.
+  // Fallback for devices/browsers without a usable camera (e.g. some desktops).
   const onFilePicked = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -78,24 +80,19 @@ const CameraCapture = ({ open, onCapture, onClose }: CameraCaptureProps) => {
 
   return (
     <div className="fixed inset-0 z-[60] flex flex-col bg-black">
-      <div className="flex items-center justify-between p-4">
-        <span className="text-sm font-medium text-white">Enfoca tu coleccionable</span>
-        <button
-          onClick={onClose}
-          aria-label="Cerrar cámara"
-          className="flex h-9 w-9 items-center justify-center rounded-full bg-white/15 text-white"
-        >
-          <X size={18} />
-        </button>
-      </div>
-
+      {/* Live preview fills all available space */}
       <div className="relative flex-1 overflow-hidden">
         <video
           ref={videoRef}
           playsInline
           muted
-          className="h-full w-full object-cover"
+          className={`h-full w-full object-cover ${facingMode === "user" ? "-scale-x-100" : ""}`}
         />
+
+        {/* Top hint bar, overlaid like a native camera */}
+        <div className="absolute inset-x-0 top-0 flex items-center justify-center bg-gradient-to-b from-black/50 to-transparent px-4 pb-8 pt-[max(env(safe-area-inset-top),1rem)]">
+          <span className="text-sm font-medium text-white/90">Enfoca tu coleccionable</span>
+        </div>
 
         {status === "loading" && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/70 text-white">
@@ -105,7 +102,7 @@ const CameraCapture = ({ open, onCapture, onClose }: CameraCaptureProps) => {
         )}
 
         {status === "error" && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-black/80 px-8 text-center text-white">
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-black/85 px-8 text-center text-white">
             <p className="text-sm">
               No pudimos acceder a la cámara. Revisa los permisos del navegador o usa una foto.
             </p>
@@ -117,18 +114,36 @@ const CameraCapture = ({ open, onCapture, onClose }: CameraCaptureProps) => {
         )}
       </div>
 
-      {status === "ready" && (
-        <div className="flex items-center justify-center pb-10 pt-6">
-          {/* Classic camera shutter: white inner disc inside an outer ring */}
+      {/* Bottom control bar: cancel · shutter · flip */}
+      <div className="grid grid-cols-3 items-center bg-black px-8 pb-[max(env(safe-area-inset-bottom),1.5rem)] pt-5">
+        <button
+          onClick={onClose}
+          aria-label="Cancelar"
+          className="justify-self-start text-base font-medium text-white/90"
+        >
+          Cancelar
+        </button>
+
+        {status === "ready" ? (
           <button
             onClick={takePhoto}
             aria-label="Tomar foto"
-            className="flex h-[74px] w-[74px] items-center justify-center rounded-full border-4 border-white/90 transition-transform active:scale-90"
+            className="justify-self-center flex h-[74px] w-[74px] items-center justify-center rounded-full border-4 border-white/90 transition-transform active:scale-90"
           >
             <span className="h-[58px] w-[58px] rounded-full bg-white" />
           </button>
-        </div>
-      )}
+        ) : (
+          <span className="justify-self-center h-[74px] w-[74px]" />
+        )}
+
+        <button
+          onClick={() => setFacingMode((m) => (m === "environment" ? "user" : "environment"))}
+          aria-label="Girar cámara"
+          className="justify-self-end flex h-11 w-11 items-center justify-center rounded-full bg-white/15 text-white"
+        >
+          <RefreshCw size={20} />
+        </button>
+      </div>
     </div>
   );
 };
