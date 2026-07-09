@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Camera, Upload, X, Loader2, Search } from "lucide-react";
+import { Camera, X, Loader2, Search } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -8,6 +8,7 @@ import { identifyCollectible, type IdentifyResponse } from "@/lib/api/identifyCo
 import { useAuth } from "@/contexts/AuthContext";
 import UsageBanner from "@/components/UsageBanner";
 import ScanResultModal from "@/components/ScanResultModal";
+import CameraCapture from "@/components/CameraCapture";
 
 // Camera photos on phones/tablets can be 10+ MB; holding the raw data URI in
 // memory (and sending it to the edge function) crashes low-memory browsers and
@@ -48,6 +49,7 @@ const ScanPage = () => {
   const [scanning, setScanning] = useState(false);
   const [scanResult, setScanResult] = useState<IdentifyResponse | null>(null);
   const [showResultModal, setShowResultModal] = useState(false);
+  const [cameraOpen, setCameraOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
   const { user, scansRemaining, isPremium, refreshProfile } = useAuth();
@@ -145,21 +147,16 @@ const ScanPage = () => {
               onDragOver={(e) => e.preventDefault()}
               onDrop={handleDrop}
               className="glass flex h-80 cursor-pointer flex-col items-center justify-center gap-4 rounded-2xl border-2 border-dashed border-border transition-colors hover:border-primary/50"
-              onClick={() => fileInputRef.current?.click()}
+              onClick={() => setCameraOpen(true)}
             >
               <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
                 <Camera size={28} className="text-primary" />
               </div>
               <div className="text-center">
-                <p className="font-medium">Toca para tomar foto o subir imagen</p>
+                <p className="font-medium">Toca para abrir la cámara</p>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Arrastra y suelta o haz clic
+                  Enfoca tu coleccionable y captura la foto
                 </p>
-              </div>
-              <div className="flex gap-3">
-                <Button variant="outline" size="sm" className="gap-2" onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}>
-                  <Upload size={16} /> Subir
-                </Button>
               </div>
               <input
                 ref={fileInputRef}
@@ -233,6 +230,16 @@ const ScanPage = () => {
           <li className="flex gap-2">📐 Captura la portada/cara frontal completa</li>
         </ul>
       </motion.div>
+
+      {/* In-app camera */}
+      <CameraCapture
+        open={cameraOpen}
+        onClose={() => setCameraOpen(false)}
+        onCapture={(dataUrl) => {
+          setImage(dataUrl);
+          setCameraOpen(false);
+        }}
+      />
 
       {/* Scan result modal */}
       {scanResult && (
