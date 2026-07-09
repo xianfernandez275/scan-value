@@ -78,7 +78,7 @@ const CameraCapture = ({ open, onCapture, onClose }: CameraCaptureProps) => {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-black">
+    <div className="fixed inset-0 z-[60] flex flex-col bg-black">
       <div className="flex items-center justify-between p-4">
         <span className="text-sm font-medium text-white">Enfoca tu coleccionable</span>
         <button
