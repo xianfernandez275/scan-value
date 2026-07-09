@@ -9,6 +9,40 @@ import { useAuth } from "@/contexts/AuthContext";
 import UsageBanner from "@/components/UsageBanner";
 import ScanResultModal from "@/components/ScanResultModal";
 
+// Camera photos on phones/tablets can be 10+ MB; holding the raw data URI in
+// memory (and sending it to the edge function) crashes low-memory browsers and
+// bloats the request. Downscale to a max dimension and re-encode as JPEG.
+async function compressImage(file: File, maxDim = 1280, quality = 0.82): Promise<string> {
+  const dataUrl = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const el = new Image();
+      el.onload = () => resolve(el);
+      el.onerror = reject;
+      el.src = dataUrl;
+    });
+
+    const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+    if (scale === 1 && dataUrl.length < 1_500_000) return dataUrl; // already small
+
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(img.width * scale);
+    canvas.height = Math.round(img.height * scale);
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return dataUrl;
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL("image/jpeg", quality);
+  } catch {
+    return dataUrl; // fall back to the original if anything goes wrong
+  }
+}
+
 const ScanPage = () => {
   const [image, setImage] = useState<string | null>(null);
   const [scanning, setScanning] = useState(false);
@@ -18,10 +52,13 @@ const ScanPage = () => {
   const navigate = useNavigate();
   const { user, scansRemaining, isPremium, refreshProfile } = useAuth();
 
-  const handleFile = useCallback((file: File) => {
-    const reader = new FileReader();
-    reader.onloadend = () => setImage(reader.result as string);
-    reader.readAsDataURL(file);
+  const handleFile = useCallback(async (file: File) => {
+    try {
+      const compressed = await compressImage(file);
+      setImage(compressed);
+    } catch {
+      toast.error("No se pudo procesar la imagen. Prueba con otra foto.");
+    }
   }, []);
 
   const handleDrop = useCallback(
