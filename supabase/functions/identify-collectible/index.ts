@@ -133,7 +133,7 @@ interface ApiKeyStatus {
 
 function checkApiKeys(): ApiKeyStatus[] {
   const keys: ApiKeyStatus[] = [
-    { name: 'Lovable AI', envVar: 'LOVABLE_API_KEY', configured: !!Deno.env.get('LOVABLE_API_KEY'), required: true },
+    { name: 'Google Gemini', envVar: 'GEMINI_API_KEY', configured: !!Deno.env.get('GEMINI_API_KEY'), required: true },
     { name: 'Comic Vine', envVar: 'COMIC_VINE_API_KEY', configured: !!Deno.env.get('COMIC_VINE_API_KEY'), required: true },
     { name: 'Numista', envVar: 'NUMISTA_API_KEY', configured: !!Deno.env.get('NUMISTA_API_KEY'), required: true },
     { name: 'Discogs', envVar: 'DISCOGS_TOKEN', configured: !!Deno.env.get('DISCOGS_TOKEN'), required: true },
@@ -792,14 +792,14 @@ function getProvidersForCategory(category: string): CollectibleProvider[] {
 async function identifyWithAI(base64Data: string, apiKey: string): Promise<Identification> {
   log('ai', 'Starting AI identification...');
   
-  const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+  const response = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'google/gemini-2.5-flash',
+      model: 'gemini-2.5-flash',
       messages: [
         {
           role: 'system',
@@ -1084,8 +1084,8 @@ Deno.serve(async (req) => {
       log('main', `⚠️ ${missingKeys.length} API key(s) missing: ${missingKeys.map(k => k.envVar).join(', ')}. Some providers will be unavailable.`);
     }
     
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY is not configured');
+    const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
+    if (!GEMINI_API_KEY) throw new Error('GEMINI_API_KEY is not configured');
 
     const body = await req.json();
     const { imageBase64, coinRefinement, identification: existingId } = body;
@@ -1133,7 +1133,7 @@ Deno.serve(async (req) => {
 
     let identification: Identification;
     try {
-      identification = await identifyWithAI(base64Data, LOVABLE_API_KEY);
+      identification = await identifyWithAI(base64Data, GEMINI_API_KEY);
     } catch (e: any) {
       await refundScanCredit(user.id);
       creditConsumed = false;
