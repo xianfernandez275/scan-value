@@ -72,7 +72,7 @@ Incluye una mezcla de cartas, cómics, monedas y juguetes con precios realistas.
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "gemini-2.5-flash-lite",
+          model: "gemini-flash-lite-latest",
           messages: [
             {
               role: "system",
@@ -133,7 +133,7 @@ Precios en USD realistas. Artículos reales y reconocidos.
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "gemini-2.5-flash-lite",
+          model: "gemini-flash-lite-latest",
           messages: [
             {
               role: "system",
@@ -196,7 +196,7 @@ Reglas:
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "gemini-2.5-flash",
+        model: "gemini-flash-latest",
         messages: [
           {
             role: "system",

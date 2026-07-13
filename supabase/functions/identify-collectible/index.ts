@@ -799,7 +799,7 @@ async function identifyWithAI(base64Data: string, apiKey: string): Promise<Ident
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-flash-latest',
       messages: [
         {
           role: 'system',
@@ -870,8 +870,7 @@ IMPORTANT: For the "category" field, you MUST use one of these exact values:
     logError('ai', `AI gateway responded with HTTP ${status}`, text);
     if (status === 429) throw new Error('RATE_LIMIT');
     if (status === 402) throw new Error('CREDITS_EXHAUSTED');
-    // Surface the upstream body (truncated) so the real cause reaches the client.
-    throw new Error(`AI error ${status}: ${String(text).slice(0, 300)}`);
+    throw new Error(`AI gateway error: ${status}`);
   }
 
   const data = await response.json();
