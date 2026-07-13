@@ -870,7 +870,8 @@ IMPORTANT: For the "category" field, you MUST use one of these exact values:
     logError('ai', `AI gateway responded with HTTP ${status}`, text);
     if (status === 429) throw new Error('RATE_LIMIT');
     if (status === 402) throw new Error('CREDITS_EXHAUSTED');
-    throw new Error(`AI gateway error: ${status}`);
+    // Surface the upstream body (truncated) so the real cause reaches the client.
+    throw new Error(`AI error ${status}: ${String(text).slice(0, 300)}`);
   }
 
   const data = await response.json();
