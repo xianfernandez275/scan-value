@@ -792,13 +792,7 @@ function getProvidersForCategory(category: string): CollectibleProvider[] {
 async function identifyWithAI(base64Data: string, apiKey: string): Promise<Identification> {
   log('ai', 'Starting AI identification...');
   
-  const response = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
+  const requestBody = JSON.stringify({
       model: 'gemini-flash-latest',
       messages: [
         {
@@ -861,19 +855,39 @@ IMPORTANT: For the "category" field, you MUST use one of these exact values:
         },
       ],
       tool_choice: { type: 'function', function: { name: 'identify_collectible' } },
-    }),
   });
 
-  if (!response.ok) {
+  // Gemini occasionally returns transient 429/5xx (model overloaded). Retry
+  // with exponential backoff so users almost never see an error.
+  const TRANSIENT_STATUS = new Set([429, 500, 502, 503, 504]);
+  const MAX_ATTEMPTS = 4;
+  let data: any = null;
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: requestBody,
+    });
+
+    if (response.ok) {
+      data = await response.json();
+      break;
+    }
+
     const status = response.status;
     const text = await response.text();
-    logError('ai', `AI gateway responded with HTTP ${status}`, text);
-    if (status === 429) throw new Error('RATE_LIMIT');
+    logError('ai', `AI responded with HTTP ${status} (attempt ${attempt}/${MAX_ATTEMPTS})`, text);
     if (status === 402) throw new Error('CREDITS_EXHAUSTED');
+    if (TRANSIENT_STATUS.has(status) && attempt < MAX_ATTEMPTS) {
+      await new Promise((r) => setTimeout(r, 600 * 2 ** (attempt - 1)));
+      continue;
+    }
+    if (status === 429) throw new Error('RATE_LIMIT');
     throw new Error(`AI gateway error: ${status}`);
   }
-
-  const data = await response.json();
   const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
   if (!toolCall?.function?.arguments) {
     logError('ai', 'No structured response from AI', JSON.stringify(data).substring(0, 500));

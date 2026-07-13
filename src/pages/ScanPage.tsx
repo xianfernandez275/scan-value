@@ -111,6 +111,8 @@ const ScanPage = () => {
         toast.error("Demasiadas solicitudes. Espera un momento e intenta de nuevo.");
       } else if (msg.includes('credits') || msg.includes('CREDITS')) {
         toast.error("Créditos de IA agotados.");
+      } else if (msg.includes('gateway error: 5') || msg.includes('503') || msg.includes('overloaded')) {
+        toast.error("El servicio de IA está muy solicitado ahora mismo. Espera unos segundos e inténtalo de nuevo.");
       } else if (msg.includes('FunctionsFetchError') || msg.includes('Failed to fetch')) {
         toast.error("Error de conexión. La imagen puede ser demasiado grande. Intenta con una foto más pequeña.");
       } else {
